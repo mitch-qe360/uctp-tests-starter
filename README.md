@@ -61,6 +61,7 @@ Your name-tag is in the top bar of the UCTP site: `You are: Ana-4821` means `Ana
 
 ```
 uctp-tests/
+├── stories/         the screen stories: what each screen must do (the input for the charters)
 ├── charters/        the test charters (JSON from Charter360): what we test and why
 ├── prompts/         the prompts that wrote the tests, kept and improved like code
 ├── tests/
