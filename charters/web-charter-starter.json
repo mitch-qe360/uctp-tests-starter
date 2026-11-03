@@ -1,0 +1,204 @@
+{
+ "format": "qe360-mindmap",
+ "version": 1,
+ "title": "Card NN web test charter",
+ "settings": {
+  "rollupMode": "percentage",
+  "leafOnlyRollup": true,
+  "enableStatusPropagation": true,
+  "statusDefinitions": [
+   {
+    "id": "st_notstarted",
+    "label": "Heading",
+    "color": "transparent",
+    "countsAsComplete": false,
+    "triggersFailureCascade": false
+   },
+   {
+    "id": "st_api",
+    "label": "API test",
+    "color": "#10B981",
+    "countsAsComplete": true,
+    "triggersFailureCascade": false
+   },
+   {
+    "id": "st_ui",
+    "label": "UI journey",
+    "color": "#38BDF8",
+    "countsAsComplete": true,
+    "triggersFailureCascade": false
+   },
+   {
+    "id": "st_idea",
+    "label": "API idea (later)",
+    "color": "#EAB308",
+    "countsAsComplete": false,
+    "triggersFailureCascade": false
+   },
+   {
+    "id": "st_manual",
+    "label": "Manual",
+    "color": "#94A3B8",
+    "countsAsComplete": false,
+    "triggersFailureCascade": false
+   }
+  ],
+  "severityOrder": [
+   "st_manual",
+   "st_idea",
+   "st_ui",
+   "st_api",
+   "st_notstarted"
+  ]
+ },
+ "root": {
+  "id": "n16",
+  "text": "Card NN · <story ID> · <story name> (web)",
+  "note": "",
+  "collapsed": false,
+  "statusId": null,
+  "highlight": null,
+  "children": [
+   {
+    "id": "n1",
+    "text": "Story: paste your story and its acceptance criteria from the screen story (Story + section 3)",
+    "note": "",
+    "collapsed": false,
+    "statusId": null,
+    "highlight": null,
+    "children": []
+   },
+   {
+    "id": "n9",
+    "text": "<Page> › <section>: <what the clerk does>  (from Where)",
+    "note": "",
+    "collapsed": false,
+    "statusId": null,
+    "highlight": null,
+    "children": [
+     {
+      "id": "n3",
+      "text": "Upon page load",
+      "note": "",
+      "collapsed": false,
+      "statusId": null,
+      "highlight": null,
+      "children": [
+       {
+        "id": "n2",
+        "text": "W1 · Core + · <what you check when it opens>\nSteps: Home › …\n→ On screen: <exact heading, labels, defaults>",
+        "note": "",
+        "collapsed": false,
+        "statusId": "st_ui",
+        "highlight": null,
+        "children": []
+       }
+      ]
+     },
+     {
+      "id": "n6",
+      "text": "Element validations",
+      "note": "",
+      "collapsed": false,
+      "statusId": null,
+      "highlight": null,
+      "children": [
+       {
+        "id": "n4",
+        "text": "W2 · <heuristic> − · <one broken rule>\nSteps: … type <value> › <button>\n→ On screen: under <field>: \"<exact message>\"; no result box",
+        "note": "",
+        "collapsed": false,
+        "statusId": "st_ui",
+        "highlight": null,
+        "children": []
+       },
+       {
+        "id": "n5",
+        "text": "Other field rules: at the API (Session 5), not on the screen",
+        "note": "",
+        "collapsed": false,
+        "statusId": "st_api",
+        "highlight": null,
+        "children": []
+       }
+      ]
+     },
+     {
+      "id": "n8",
+      "text": "Functional validations",
+      "note": "",
+      "collapsed": false,
+      "statusId": null,
+      "highlight": null,
+      "children": [
+       {
+        "id": "n7",
+        "text": "W3 · Core + · <the main result>\nSteps: …\n→ On screen: <exact result box text and rows>",
+        "note": "",
+        "collapsed": false,
+        "statusId": "st_ui",
+        "highlight": null,
+        "children": []
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "id": "n11",
+    "text": "<Page where you check it> › <list or panel>  (from Where you check it)",
+    "note": "",
+    "collapsed": false,
+    "statusId": null,
+    "highlight": null,
+    "children": [
+     {
+      "id": "n10",
+      "text": "W4 · Core + · <the row or panel>\nSteps: top bar › …\n→ On screen: row with <exact texts>",
+      "note": "",
+      "collapsed": false,
+      "statusId": "st_ui",
+      "highlight": null,
+      "children": []
+     }
+    ]
+   },
+   {
+    "id": "n12",
+    "text": "Manual: is it clear for a clerk? (wording, layout, order)",
+    "note": "",
+    "collapsed": false,
+    "statusId": "st_manual",
+    "highlight": null,
+    "children": []
+   },
+   {
+    "id": "n13",
+    "text": "Risk: <what goes wrong for the city or the taxpayer if this breaks>",
+    "note": "",
+    "collapsed": false,
+    "statusId": null,
+    "highlight": null,
+    "children": []
+   },
+   {
+    "id": "n14",
+    "text": "Coverage: <what this charter covers and what it leaves out>",
+    "note": "",
+    "collapsed": false,
+    "statusId": null,
+    "highlight": null,
+    "children": []
+   },
+   {
+    "id": "n15",
+    "text": "Timeframe: <minutes>",
+    "note": "",
+    "collapsed": false,
+    "statusId": null,
+    "highlight": null,
+    "children": []
+   }
+  ]
+ }
+}

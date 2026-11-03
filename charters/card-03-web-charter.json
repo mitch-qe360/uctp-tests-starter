@@ -1,0 +1,240 @@
+{
+ "format": "qe360-mindmap",
+ "version": 1,
+ "title": "Card 03 web test charter",
+ "settings": {
+  "rollupMode": "percentage",
+  "leafOnlyRollup": true,
+  "enableStatusPropagation": true,
+  "statusDefinitions": [
+   {
+    "id": "st_notstarted",
+    "label": "Heading",
+    "color": "transparent",
+    "countsAsComplete": false,
+    "triggersFailureCascade": false
+   },
+   {
+    "id": "st_api",
+    "label": "API test",
+    "color": "#10B981",
+    "countsAsComplete": true,
+    "triggersFailureCascade": false
+   },
+   {
+    "id": "st_ui",
+    "label": "UI journey",
+    "color": "#38BDF8",
+    "countsAsComplete": true,
+    "triggersFailureCascade": false
+   },
+   {
+    "id": "st_idea",
+    "label": "API idea (later)",
+    "color": "#EAB308",
+    "countsAsComplete": false,
+    "triggersFailureCascade": false
+   },
+   {
+    "id": "st_manual",
+    "label": "Manual",
+    "color": "#94A3B8",
+    "countsAsComplete": false,
+    "triggersFailureCascade": false
+   }
+  ],
+  "severityOrder": [
+   "st_manual",
+   "st_idea",
+   "st_ui",
+   "st_api",
+   "st_notstarted"
+  ]
+ },
+ "root": {
+  "id": "n20",
+  "text": "Card 03 · TRN-02 · Create an industrial property tax bill for this year (web)",
+  "note": "",
+  "collapsed": false,
+  "statusId": null,
+  "highlight": null,
+  "children": [
+   {
+    "id": "n1",
+    "text": "Story: As a treasury clerk, I want to create a real property tax bill for an industrial property this year so that the city can collect its Basic and SEF (Special Education Fund) tax.\nAcceptance criteria:\n- Basic = 2% of the assessed value\n- SEF = 1% of the assessed value\n- Both lines start OPEN\n- Wrong values and a wrong PIN are refused with a clear message; one PIN per city\n- The bill shows in My data › My bills, and only to me",
+    "note": "",
+    "collapsed": false,
+    "statusId": null,
+    "highlight": null,
+    "children": []
+   },
+   {
+    "id": "n2",
+    "text": "Setup on the screen: Home › Create my data › section 1 › Create taxpayer › Create a property tax bill for this taxpayer",
+    "note": "",
+    "collapsed": false,
+    "statusId": null,
+    "highlight": null,
+    "children": []
+   },
+   {
+    "id": "n12",
+    "text": "Training setup › section 2: create the bill",
+    "note": "",
+    "collapsed": false,
+    "statusId": null,
+    "highlight": null,
+    "children": [
+     {
+      "id": "n4",
+      "text": "Upon page load",
+      "note": "",
+      "collapsed": false,
+      "statusId": null,
+      "highlight": null,
+      "children": [
+       {
+        "id": "n3",
+        "text": "W1 · Core + · Section 2 opens with its fields\nSteps: Home › Create my data\n→ On screen: heading \"2 — Create a property tax bill\"; Taxpayer (only yours are listed); Property class RESIDENTIAL; Tax year 2026",
+        "note": "",
+        "collapsed": false,
+        "statusId": "st_ui",
+        "highlight": null,
+        "children": []
+       }
+      ]
+     },
+     {
+      "id": "n8",
+      "text": "Element validations",
+      "note": "",
+      "collapsed": false,
+      "statusId": null,
+      "highlight": null,
+      "children": [
+       {
+        "id": "n5",
+        "text": "W2 · Numbers − · Assessed value 0\nSteps: PIN new, INDUSTRIAL, Assessed value 0, Tax year 2026 › Create property tax bill\n→ On screen: under Assessed value: \"must be greater than 0\"; no \"Bill … created:\" box",
+        "note": "",
+        "collapsed": false,
+        "statusId": "st_ui",
+        "highlight": null,
+        "children": []
+       },
+       {
+        "id": "n6",
+        "text": "W3 · Syntax − · PIN with 4 groups\nSteps: PIN 603-26-482-100, Assessed value 1000.00 › Create property tax bill\n→ On screen: under PIN: \"must match NNN-NN-NNN-NNN-NNN\"",
+        "note": "",
+        "collapsed": false,
+        "statusId": "st_ui",
+        "highlight": null,
+        "children": []
+       },
+       {
+        "id": "n7",
+        "text": "3 decimals, 1000000000.00, 999999999.99: at the API (Session 5 T5, T9, T10)",
+        "note": "",
+        "collapsed": false,
+        "statusId": "st_api",
+        "highlight": null,
+        "children": []
+       }
+      ]
+     },
+     {
+      "id": "n11",
+      "text": "Functional validations",
+      "note": "",
+      "collapsed": false,
+      "statusId": null,
+      "highlight": null,
+      "children": [
+       {
+        "id": "n9",
+        "text": "W4 · Core + · Create the bill\nSteps: PIN new, INDUSTRIAL, Assessed value 1000000.00, Tax year 2026 › Create property tax bill\n→ On screen: \"Bill <PIN> created:\" with rows RPT 20000.00 and RPT_SEF 10000.00",
+        "note": "",
+        "collapsed": false,
+        "statusId": "st_ui",
+        "highlight": null,
+        "children": []
+       },
+       {
+        "id": "n10",
+        "text": "W5 · Claims − · The same PIN a second time\nSteps: right after W4, click Create property tax bill again\n→ On screen: under PIN: \"already taken for this tenant\"",
+        "note": "",
+        "collapsed": false,
+        "statusId": "st_ui",
+        "highlight": null,
+        "children": []
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "id": "n15",
+    "text": "My data › My bills: see the bill",
+    "note": "",
+    "collapsed": false,
+    "statusId": null,
+    "highlight": null,
+    "children": [
+     {
+      "id": "n13",
+      "text": "W6 · Core + · My bill is in My bills\nSteps: top bar › My data\n→ On screen: row RPT <PIN> | INDUSTRIAL 2026 | 1000000.00 | OPEN",
+      "note": "",
+      "collapsed": false,
+      "statusId": "st_ui",
+      "highlight": null,
+      "children": []
+     },
+     {
+      "id": "n14",
+      "text": "Only to me: another name-tag sees none of my bills (Card 20 journey; at the API: Session 5 T8)",
+      "note": "",
+      "collapsed": false,
+      "statusId": "st_api",
+      "highlight": null,
+      "children": []
+     }
+    ]
+   },
+   {
+    "id": "n16",
+    "text": "Manual: is section 2 clear for a clerk? (labels, order, the PIN hint)",
+    "note": "",
+    "collapsed": false,
+    "statusId": "st_manual",
+    "highlight": null,
+    "children": []
+   },
+   {
+    "id": "n17",
+    "text": "Risk: a wrong rate or rounding bills the owner the wrong tax for the whole year",
+    "note": "",
+    "collapsed": false,
+    "statusId": null,
+    "highlight": null,
+    "children": []
+   },
+   {
+    "id": "n18",
+    "text": "Coverage: what the clerk sees: the form, two field messages, the result box, the PIN rule, the My bills row. Leaves out: other field rules (API), payment",
+    "note": "",
+    "collapsed": false,
+    "statusId": null,
+    "highlight": null,
+    "children": []
+   },
+   {
+    "id": "n19",
+    "text": "Timeframe: 40 minutes",
+    "note": "",
+    "collapsed": false,
+    "statusId": null,
+    "highlight": null,
+    "children": []
+   }
+  ]
+ }
+}

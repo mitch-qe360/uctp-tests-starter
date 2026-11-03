@@ -1,8 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
-import { ME } from './me';
+import { ME } from './tests/web/me';
 
 export default defineConfig({
-  testDir: '.',
+  testDir: 'tests',
   fullyParallel: false,   // shared training site: one test at a time
   workers: 1,
   retries: 0,             // a failure is information; don't retry it away

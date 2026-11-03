@@ -1,5 +1,5 @@
 // Card 03 · Property tax bill (INDUSTRIAL, this year) and its two lines
-// Runs in the browser Console (F12 › Console) and with Node: node api/card-03.test.js
+// Runs in the browser Console (F12 › Console) and with Node: node tests/api/card-03.test.js
 // Change ME first: your name-tag from the top bar of the site.
 (async () => {
   const ME = 'Ana-4821';   // your name-tag from the top bar

@@ -1,4 +1,4 @@
-// Runs every api/*.test.js file one after another with Node.
+// Runs every tests/api/*.test.js file one after another with Node.
 // A file fails if it crashes, sets a failing exit code, or prints "N passed, M failed" with M above 0
 // (so code copied from the Console works here without changes).
 // The job turns red in GitHub Actions if any file fails.
@@ -6,7 +6,7 @@ const { readdirSync } = require('fs');
 const { spawnSync } = require('child_process');
 const path = require('path');
 
-const dir = path.join(__dirname, '..', 'api');
+const dir = path.join(__dirname, '..', 'tests', 'api');
 const files = readdirSync(dir).filter(f => f.endsWith('.test.js')).sort();
 let failed = 0;
 for (const f of files) {
