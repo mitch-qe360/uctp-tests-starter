@@ -1,0 +1,14 @@
+{
+  "name": "uctp-tests",
+  "private": true,
+  "description": "My UCTP tests: API tests (Node) and web tests (Playwright), run by GitHub Actions on every change",
+  "scripts": {
+    "test:api": "node scripts/run-api-tests.js",
+    "test:web": "playwright test --project=web",
+    "test": "npm run test:api && npm run test:web",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}
