@@ -289,7 +289,7 @@ Checked order when several fields are wrong: Reference, then Amount, then Due da
 ### 1. When the screen opens (upon page load)
 - Training setup, section heading `3 — Create a business tax or fee bill`; fields as on Card 05: `Taxpayer (only yours are listed)` (list), `Type` (list: `BUSINESS` selected, `FEE`), `Reference`, `Description`, `Amount (₱)`, `Due date` (hint `YYYY-MM-DD`); button `Create bill`.
 - Assessment page (opens in the same tab): band `SPECIMEN — NOT AN OFFICIAL STATEMENT`; lines `Republic of the Philippines`, `CITY OF TAGAYTAY / PROVINCE OF CAVITE`, `Office of the City Treasurer`; title `STATEMENT OF ACCOUNT`.
-- Assessment page boxes: `Acct No.` `—`; `SOA No.` `SOA-<year>-<month>-<first 8 characters of the line id, capitals>`; `Date` (the server's date); `Declared Owner` = your taxpayer's full name; `Contact` = the mobile; `Address` `—`.
+- Assessment page boxes: `Acct No.` `—`; `SOA No.` `SOA-<year>-<month>-<first 8 characters of the line id, capitals>`; `Date` (today, Manila); `Declared Owner` = your taxpayer's full name; `Contact` = the mobile, masked except the last 4 digits (`*******4567`); `Address` `—`.
 - Assessment table columns: `LOCATION / PIN / AREA / UNIT`, `ARPN / PREV ARPN`, `ASSESSED VALUE`, `BASIC (Principal, Penalty, Discount)`, `SEF (Principal, Penalty, Discount)`, `IDLE LAND TAX`, `TOTAL`, `TAX YEAR`, `FULL / QTR(S)`.
 - Below: `TOTAL DUE` with the amount; `This Statement is valid until <last day of this month>`; `Last Payment: none on record.`; signature lines `OIC - Land Tax Division` and `City Treasurer`; button `Print`.
 
@@ -317,7 +317,7 @@ Checked order when several fields are wrong: Reference, then Amount, then Due da
 ### 5. Not on this screen
 - API only: `due_date` (no screen shows the due date of a fee bill), `GET /api/v1/training/bills/{bill_id}` → `amount` `2500.00`, `status` `OPEN`; another user → 404 `{"detail":"Not Found"}`.
 - Manual (needs judgment): the TOTAL DUE changes with today's month, so a check must use the class day's figure. Is a 2% monthly interest right for a fee? (ASK-6). The page puts fee interest under the column `BASIC (Principal, Penalty, Discount)`, a property-tax word: clear to a clerk?
-- Open questions: (1) the Assessment page `Date` showed `2026-11-03` at 00:45 on Nov 4 Manila time: it looks like the server's UTC date, so between midnight and 8 AM Manila it shows yesterday (check on screen in class hours). (2) The Assessment page opened with no name-tag at all (fetched with no `X-User-ID`, status 200) and showed the owner name and mobile: anyone with the link can see it. Is that intended?
+- Open questions: the Assessment page opens with no name-tag at all (status 200 with no `X-User-ID`) and shows the owner's name (the mobile is masked). Anyone with the link can see it. Is that intended?
 
 ---
 
@@ -389,7 +389,7 @@ Training setup page (heading `Training setup`), section heading `2 — Create a 
 Assessment page (`/soa/<line id>`), one page per line:
 - Note at the top: `REPLICA aligned to Tagaytay City's Statement of Account. …`; stamp `SPECIMEN — NOT AN OFFICIAL STATEMENT`.
 - Headings: `Republic of the Philippines`, `CITY OF TAGAYTAY / PROVINCE OF CAVITE`, `Office of the City Treasurer`, `STATEMENT OF ACCOUNT`.
-- Top table: `Acct No.` `—`, `SOA No.` `SOA-<YYYY>-<MM>-<first 8 characters of the line id, upper case>`, `Date` (today, UTC), `Declared Owner` (taxpayer name), `Contact` (mobile), `Address` `—`.
+- Top table: `Acct No.` `—`, `SOA No.` `SOA-<YYYY>-<MM>-<first 8 characters of the line id, upper case>`, `Date` (today, Manila), `Declared Owner` (taxpayer name), `Contact` (mobile, masked except the last 4 digits), `Address` `—`.
 - Line table columns: `LOCATION / PIN / AREA / UNIT`, `ARPN / PREV ARPN`, `ASSESSED VALUE`, `BASIC (Principal, Penalty, Discount)`, `SEF (Principal, Penalty, Discount)`, `IDLE LAND TAX`, `TOTAL`, `TAX YEAR`, `FULL / QTR(S)`.
 - `TOTAL DUE` with the amount; `This Statement is valid until November 30, 2026`; `Last Payment: none on record.`; signature blocks `OIC - Land Tax Division` and `City Treasurer`; button `Print`.
 
@@ -434,7 +434,7 @@ The screen shows only one field message at a time. With several fields wrong, th
 ### 5. Not on this screen
 - **API only:** a chosen payment date (`GET /api/v1/rpt/assessment?pin=&tax_year=2026&payment_date=`); each quarter's `months_late`, `rate_bps` and interest; `discount_withheld_reason` (`null`); `mode` `CURRENT_YEAR`. Query rules and messages: `tax_year` not a year → 400 `tax_year must be a year or a comma-separated list of years`; outside 2000–2100 → 400 `tax_year out of range`; repeated → 400 `duplicate tax years`; no bill that year → 404 `no RPT receivables for that PIN and tax year`; `payment_date` not a real date or missing → 422 list with `loc` `["query","payment_date"]`.
 - **Manual (needs judgment):** Is "Penalty" the right word for interest on the page? The `ASSESSED VALUE` column shows `—` even though the bill has one. The page top bar highlights `Citizen portal` as the current page.
-- **Open questions:** The Assessment page opens for anyone who has its link. It needs no name-tag and shows the owner's name and mobile. Is that intended (see Card 20)? The page date is UTC.
+- **Open questions:** The Assessment page opens for anyone who has its link. It needs no name-tag and shows the owner's name (the mobile is masked). Is that intended (see Card 20)?
 
 ---
 
@@ -549,7 +549,7 @@ My data › My bills › details panel:
 
 Teller POS (after Collect at POS):
 - Heading `Teller POS`; `TAGAYTAY`; `Teller: <first 8 characters of your teller ID>`; `F2 lookup · F8 tender · Enter submit`.
-- `Order of Payment No.`: text box, filled with `OP-<YYYYMMDD>-<8 characters>` (placeholder `OP-YYYYMMDD-XXXXXXXX`). The date part is the UTC date.
+- `Order of Payment No.`: text box, filled with `OP-<YYYYMMDD>-<8 characters>` (placeholder `OP-YYYYMMDD-XXXXXXXX`). The date part is today's Manila date.
 - Button `Load (Enter)`.
 - Panel heading `Assessment`, with `Base`, `Interest (<n> months)`, `Discount`, `Surcharge`, `Total due today`, `Printed total`, `Delta`.
 - Panel heading `Tender`, with `Type` (`Cash` / `Cheque`, default `Cash`), `Amount` (prefilled with Total due today), `OR serial` (empty, placeholder `auto`), `Payor` (`WALK-IN`), and button `Tender & Print (Enter)` (disabled until the bill lock is ready).
@@ -632,15 +632,15 @@ The amounts on this card do not change before the due date, 2026-12-31.
 
 ### 4. Where you check it (the validate story)
 - Back to My data › My receipts: row `AF_51-<serial, 7 digits>` | `WALK-IN` | `1850.00` | `ISSUED` | `details`. The serial is padded with zeros, for example `AF_51-0111501`.
-- My receipts › details: `Issued <date and time>` (UTC, in the form `2026-11-03T16:47:38.496Z`), buttons `Print receipt` and `Request a void`.
+- My receipts › details: `Issued <date and time>` (Manila time, in the form `2026-11-04 00:47`), buttons `Print receipt` and `Request a void`.
 - My bills: row `Business <your reference>` | (empty) | `1850.00` | `PAID` | `details`.
 - My bills › details: `<8 characters> BUSINESS — 1850.00 (PAID)`. Buttons `Assessment` and `Find in portal` show; `Collect at POS` does **not**.
-- My bills › details › Assessment: TOTAL DUE `₱0.00`; `Last Payment: PIN: <your reference>, Yr & Term: 2026 / FULL, OR Number: <7-digit serial>, OR Date: <UTC date>, Amount: ₱1,850.00`.
+- My bills › details › Assessment: TOTAL DUE `₱0.00`; `Last Payment: PIN: <your reference>, Yr & Term: 2026 / FULL, OR Number: <7-digit serial>, OR Date: <Manila date>, Amount: ₱1,850.00`.
 - Another name-tag: their My receipts shows `None yet — collect a payment at the POS.`
 
 ### 5. Not on this screen
 - **API only:** the receipt fields `form_type` "AF_51", `payment_mode` "CASH", line `account_code` "TBD-RCA-2015-009", `fund_code` "GENERAL_FUND", `amount_applied`, `subject_ref_id`; tender type other than CASH/CHECK → 400 `tender_type must be CASH or CHECK`; a lock older than 30 minutes → 409 `intent is EXPIRED`; OP on the paid line → 409 `receivable is PAID`.
-- **Manual (needs judgment):** The print view layout. On the Assessment page, `Last Payment` labels the business reference as `PIN:`. The print view shows the time in UTC.
+- **Manual (needs judgment):** The print view layout. On the Assessment page, `Last Payment` labels the business reference as `PIN:`.
 - **Open questions:** The `Tender` panel stays on the screen after posting. Is a second click expected to only show the 409 message?
 
 ---
@@ -683,7 +683,7 @@ The November amounts are AC-1's panel above. In October it was 10 months, `315.0
 - My receipts: row `AF_56-<serial, 7 digits>` | `WALK-IN` | `3285.00` | `ISSUED` | `details`.
 - My bills: row `RPT <PIN>` | `RESIDENTIAL 2026` | `200000.00` | `OPEN` | `details`.
 - My bills › details: `<8 characters> RPT — 3000.00 (PAID)`, `<8 characters> RPT_SEF — 2000.00 (OPEN)`. The RPT button set shows only `Assessment` and `Find in portal`, so the **first** `Collect at POS` on the page is now the SEF line.
-- First `Assessment` (RPT line): BASIC `₱3,000.00, ₱0.00, ₱0.00`, TOTAL `₱0.00`, TOTAL DUE `₱0.00`; `Last Payment: PIN: <PIN>, Yr & Term: 2026 / FULL, OR Number: <7-digit serial>, OR Date: <UTC date>, Amount: ₱3,285.00`.
+- First `Assessment` (RPT line): BASIC `₱3,000.00, ₱0.00, ₱0.00`, TOTAL `₱0.00`, TOTAL DUE `₱0.00`; `Last Payment: PIN: <PIN>, Yr & Term: 2026 / FULL, OR Number: <7-digit serial>, OR Date: <Manila date>, Amount: ₱3,285.00`.
 - Second `Assessment` (SEF line), November: SEF `₱2,000.00, ₱240.00, ₱50.00`, TOTAL DUE `₱2,190.00`, `Last Payment: none on record.`
 - Another name-tag: their My receipts shows `None yet — collect a payment at the POS.`
 
@@ -745,7 +745,7 @@ The amounts on this card do not change before the due date, 2026-12-31.
 
 
 
-**Dates.** The server works in UTC. Before 8 AM Manila, the UTC date is still yesterday. On Nov 4 at 00:46 Manila, the server wrote `2026-11-03` in every place that shows a date: the Order of Payment number, "Issued" in My receipts, and "Date" on the receipt print view. The portal and POS amounts follow today's date. Each card says which amounts do.
+**Dates.** Every date and time on the screens is Manila time: the Order of Payment number, "Issued" in My receipts, and "Date" on the receipt print view (fixed on staging Nov 4, 01:24 Manila). The portal and POS amounts follow today's date. Each card says which amounts do.
 
 **Money.** The POS, Training setup and My data show plain numbers (`3000.00`). The portal and the receipt print view show pesos (`₱2,737.50`). The Training setup result box for a bill shows `₱` plus the plain number (`₱999.00`).
 
@@ -767,7 +767,7 @@ The RCD itself is API only (`POST /api/v1/shift-close/teller-rcd`).
 ### 1. When the screen opens (upon page load)
 **Teller POS** (opened by Collect at POS):
 - Heading "Teller POS". Next to it: `TAGAYTAY`, `Teller: <first 8 characters of your newest teller ID>`, and the hint "F2 lookup · F8 tender · Enter submit".
-- Field "Order of Payment No." is already filled with the new OP number `OP-<YYYYMMDD>-<8 characters>`. The date part is the UTC date. Next to it: button "Load (Enter)".
+- Field "Order of Payment No." is already filled with the new OP number `OP-<YYYYMMDD>-<8 characters>`. The date part is today's Manila date. Next to it: button "Load (Enter)".
 - Panel "Assessment" shows these rows in order: Base `3000.00`, Interest (0 months) `0.00`, Discount `0.00`, Surcharge `0.00`, **Total due today** `3000.00`, Printed total `3000.00`, Delta `0.00`. These amounts stay the same until the due date (2026-12-31).
 - Panel "Tender":
   - Type: a list, Cash by default; the options are Cash and Cheque.
@@ -779,7 +779,7 @@ The RCD itself is API only (`POST /api/v1/shift-close/teller-rcd`).
 
 **My data › My receipts** (after the payment):
 - A row with 5 cells: `AF_51-<serial, 7 digits>` | `WALK-IN` | `3000.00` | `ISSUED` | `details`.
-- `details` opens: `Issued <date and time in UTC, e.g. 2026-11-03T16:46:07.610Z>`, button "Print receipt", button "Request a void".
+- `details` opens: `Issued <date and time, Manila, e.g. 2026-11-04 00:46>`, button "Print receipt", button "Request a void".
 
 ### 2. Rules for each field (element validations)
 | Field (label on screen) | Rule | Message on screen when broken |
@@ -800,12 +800,12 @@ The RCD itself is API only (`POST /api/v1/shift-close/teller-rcd`).
 - AC-5 The receipt number is the next free number in your teller's AF 51 booklet.
 - AC-6 My receipts shows the receipt as ISSUED for 3000.00.
 - AC-7 My bills shows the bill as PAID, and "Collect at POS" no longer shows for it.
-- AC-8 The date part of "Issued" (UTC) is the `shift_date` the RCD needs.
+- AC-8 The date part of "Issued" (Manila) is the `shift_date` the RCD needs.
 
 ### 4. Where you check it (the validate story)
 - Home › See my data › My receipts: row `AF_51-<serial>` | `WALK-IN` | `3000.00` | `ISSUED`. Click `details` to see "Issued …".
 - Home › See my data › My bills: row `Business <reference>` | (blank) | `3000.00` | `PAID`.
-- Print receipt (it opens in a new tab): "OFFICIAL RECEIPT (AF 51)", "SPECIMEN — NOT AN OFFICIAL RECEIPT", `Date <UTC date>`, `O.R. No. <7 digits>`, `Received from WALK-IN`, `Total Tax Due / Amount Received ₱3,000.00`, `Payment Type CASH`, `Status ISSUED`.
+- Print receipt (it opens in a new tab): "OFFICIAL RECEIPT (AF 51)", "SPECIMEN — NOT AN OFFICIAL RECEIPT", `Date <Manila date>`, `O.R. No. <7 digits>`, `Received from WALK-IN`, `Total Tax Due / Amount Received ₱3,000.00`, `Payment Type CASH`, `Status ISSUED`.
 - Another name-tag sees "None yet — collect a payment at the POS." under My receipts.
 
 ### 5. Not on this screen
@@ -817,10 +817,10 @@ The RCD itself is API only (`POST /api/v1/shift-close/teller-rcd`).
   - A bad date gets 422 "Value error, must be a date in YYYY-MM-DD form, e.g. 2026-10-28". A bad amount gets 422 "Value error, must be a peso amount, e.g. 10000.00". An unknown RCD gets 404 `teller RCD not found`. (All three re-checked Nov 4.)
   - Reading it back: `GET /api/v1/shift-close/teller-rcd/{rcd_id}`.
 - **Not visible anywhere on the screen.** The full `teller_id` (the POS shows 8 characters; My tellers shows only the name and booklets) and the `receipt_id`. Get them from `GET /api/v1/training/tellers` or `GET /api/v1/training/receipts`.
-- **Manual (needs judgment).** The print view layout. Whether a UTC date on the receipt is right for a Manila cashier.
+- **Manual (needs judgment).** The print view layout.
 - **Open questions.**
   - The charter says "Upon page load: ASK: no screen". No RCD screen exists.
-  - Known bugs from the card: an unknown teller_id gets 500, and a negative cash_declared is accepted.
+  - Fixed on staging Nov 4: an unknown teller_id gets 404 `{"detail":"teller not found"}`; a negative cash_declared or cheque_declared gets 422 `must not be negative (0.00 when nothing was collected)`; 0.00 is accepted. Ignore `RCD-2026-11-04-981F66D3` (a trainer check on the seeded teller) if you see it.
 
 ---
 
@@ -843,7 +843,7 @@ There is no approve screen. You approve or reject in the top bar's API docs. The
 ### 1. When the screen opens (upon page load)
 **My data › My receipts**
 - Row: `AF_51-<serial, 7 digits>` | `WALK-IN` | `1200.00` | `ISSUED` | `details`.
-- `details` shows: `Issued <UTC date and time>`, button "Print receipt", button "Request a void". "Request a void" shows only when the status is ISSUED or ON_HOLD.
+- `details` shows: `Issued <date and time, Manila>`, button "Print receipt", button "Request a void". "Request a void" shows only when the status is ISSUED or ON_HOLD.
 
 **Teller POS, panel "Posted"** (right after a payment)
 - "Official Receipt issued." with the link "Open AF 51 print view".
@@ -915,12 +915,12 @@ The RCD and the explanation are API only.
 ### 1. When the screen opens (upon page load)
 **Teller POS** (opened by Collect at POS):
 - Heading "Teller POS", `TAGAYTAY`, `Teller: <8 characters>`, "F2 lookup · F8 tender · Enter submit".
-- "Order of Payment No." filled with `OP-<YYYYMMDD>-<8 characters>` (UTC date). Button "Load (Enter)".
+- "Order of Payment No." filled with `OP-<YYYYMMDD>-<8 characters>` (today's Manila date). Button "Load (Enter)".
 - Panel "Assessment": Base `500.00`, Interest (0 months) `0.00`, Discount `0.00`, Surcharge `0.00`, **Total due today** `500.00`, Printed total `500.00`, Delta `0.00`. These amounts stay the same until the due date (2026-12-31).
 - Panel "Tender": Type Cash (options Cash, Cheque), Amount `500.00`, OR serial blank (placeholder "auto"), Payor `WALK-IN`, button "Tender & Print (Enter)" (disabled until the lock is ready).
 
 **My data › My receipts** (after the payment):
-- Row `AF_51-<serial>` | `WALK-IN` | `500.00` | `ISSUED` | `details`. `details` shows `Issued <UTC date and time>`.
+- Row `AF_51-<serial>` | `WALK-IN` | `500.00` | `ISSUED` | `details`. `details` shows `Issued <date and time, Manila>`.
 
 ### 2. Rules for each field (element validations)
 | Field (label on screen) | Rule | Message on screen when broken |
@@ -935,7 +935,7 @@ On the screen the POS always takes the full amount. You can't make a shortage on
 - AC-1 Tender & Print (Enter) shows "Official Receipt issued." and "Open AF 51 print view".
 - AC-2 My receipts shows the receipt as ISSUED for 500.00.
 - AC-3 My bills shows the row `Fee <reference>` with status PAID.
-- AC-4 The date part of "Issued" (UTC) is the `shift_date` the RCD needs.
+- AC-4 The date part of "Issued" (Manila) is the `shift_date` the RCD needs.
 
 ### 4. Where you check it (the validate story)
 - Home › See my data › My receipts: row `AF_51-<serial>` | `WALK-IN` | `500.00` | `ISSUED`.
