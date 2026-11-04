@@ -49,4 +49,14 @@ function newMobile() {                                   // 09 + 9 digits, never
   return `09${String(Date.now()).slice(-8)}${counter % 10}`;
 }
 
-module.exports = { api, check, finish, newMobile, HEADERS, AS_PROBE, NO_USER, ME };
+function digits(n) {                                    // n new digits from the clock
+  counter += 1;
+  return (String(Date.now()) + String(counter % 10)).slice(-n);
+}
+const newPin = () => {                                   // property PIN NNN-NN-NNN-NNN-NNN
+  const d = digits(13);
+  return `7${d.slice(0, 2)}-${d.slice(2, 4)}-${d.slice(4, 7)}-${d.slice(7, 10)}-${d.slice(10, 13)}`;
+};
+const newReference = () => `A${digits(2)}-${digits(9)}`; // business or fee bill reference
+
+module.exports = { api, check, finish, newMobile, newPin, newReference, HEADERS, AS_PROBE, NO_USER, ME };
