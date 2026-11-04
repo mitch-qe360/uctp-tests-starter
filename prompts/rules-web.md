@@ -12,6 +12,7 @@ Paste this whole file into your prompt, under "4 · RULES". It tells the AI how 
   - `await signIn(page)` opens the site and signs in with my name-tag. Call it in `test.beforeEach`.
   - `newMobile()` makes a new mobile on every run.
 - Open pages the way a clerk does: click the buttons and links. Only `signIn` uses a URL.
+- The charter's Steps say what each thing is: `button "Create taxpayer"` → `getByRole('button', { name: 'Create taxpayer' })`; `link "My data"` → `getByRole('link', { name: 'My data' })`. A `top bar link` is inside `getByRole('navigation', { name: 'Main' })`.
 - One `test(...)` per charter node, named with the node's id: `test('W3 · Users + · ...', ...)`. Each test makes its own data.
 - Find things the way a person sees them: `getByRole`, `getByLabel`, `getByText`, with the exact texts from the charter.
 - Check with `expect(...)`. Never wait a fixed time (no `waitForTimeout`).
