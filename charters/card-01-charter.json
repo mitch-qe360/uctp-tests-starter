@@ -284,7 +284,7 @@
          },
          {
           "id": "n22",
-          "text": "W8 · − · AC-8 · dashes, on the screen\nSteps: Home › button \"Create my data\" › Full name \"Ana Dela Cruz\", Mobile \"0917-123-4567\" › button \"Create taxpayer\"\n→ On screen: under Mobile: \"must be a PH mobile 09XXXXXXXXX or +639XXXXXXXXX\"; no result box",
+          "text": "W8 · − · AC-8 · dashes, on the screen\nSteps: Home › button \"Create my data\" › Full name \"Ana Dela Cruz\", Mobile \"0917-123-4567\" › button \"Create taxpayer\"\n→ On screen: under Mobile (09XXXXXXXXX): \"must be a PH mobile 09XXXXXXXXX or +639XXXXXXXXX\"; no result box",
           "note": "",
           "collapsed": false,
           "statusId": "st_ui",
@@ -450,7 +450,7 @@
        },
        {
         "id": "n41",
-        "text": "W5 · − · AC-4 · the same mobile twice, on the screen\nSteps: Home › button \"Create my data\" › create a taxpayer with <new mobile> › reload › create another with the same mobile\n→ On screen: under Mobile: \"already registered for this tenant\"",
+        "text": "W5 · − · AC-4 · the same mobile twice, on the screen\nSteps: Home › button \"Create my data\" › create a taxpayer with <new mobile> › reload › create another with the same mobile\n→ On screen: under Mobile (09XXXXXXXXX): \"already registered for this tenant\"",
         "note": "",
         "collapsed": false,
         "statusId": "st_ui",
@@ -598,7 +598,7 @@
      },
      {
       "id": "n58",
-      "text": "I5 · − · AC-4 · a mobile the API registered is refused on the screen\nPOST /api/v1/training/taxpayers with <new mobile> › Steps: Home › button \"Create my data\" › Full name \"Ben Dela Cruz\", the same mobile › button \"Create taxpayer\"\n→ under Mobile: \"already registered for this tenant\"",
+      "text": "I5 · − · AC-4 · a mobile the API registered is refused on the screen\nPOST /api/v1/training/taxpayers with <new mobile> › Steps: Home › button \"Create my data\" › Full name \"Ben Dela Cruz\", the same mobile › button \"Create taxpayer\"\n→ under Mobile (09XXXXXXXXX): \"already registered for this tenant\"",
       "note": "",
       "collapsed": false,
       "statusId": "st_int",
