@@ -21,11 +21,11 @@ Automate every node in my charter JSON (at the end) whose "statusId" is "st_ui".
 One test per node. Use the node's id, request or steps, and expected result exactly.
 
 3 · FILES
-Give me tests/web/taxpayer.web.spec.ts.
+Give me tests/web/card-01.web.spec.ts.
 
 4 · RULES
 Follow our project rules:
-- Write Playwright tests in TypeScript. One file: `tests/web/<feature>.web.spec.ts`.
+- Write Playwright tests in TypeScript. One file: `tests/web/<feature>.web.spec.ts` (`<feature>` is my card, for example `card-02`).
 - Start the file like this:
   ```ts
   import { test, expect } from '@playwright/test';

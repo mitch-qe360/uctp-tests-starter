@@ -2,7 +2,7 @@
 
 Paste this whole file into your prompt, under "4 · RULES". It tells the AI how tests look in this project, so you don't have to.
 
-- Write Playwright tests in TypeScript. One file: `tests/web/<feature>.web.spec.ts`.
+- Write Playwright tests in TypeScript. One file: `tests/web/<feature>.web.spec.ts` (`<feature>` is my card, for example `card-02`).
 - Start the file like this:
   ```ts
   import { test, expect } from '@playwright/test';

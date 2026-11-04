@@ -11,7 +11,7 @@ Paste this whole file into your prompt, under "4 · RULES". It tells the AI how 
   - `AS_PROBE` = the headers of another user. `NO_USER` = the headers without `X-User-ID`.
   - `check(id, test, expected, actual, pass)` adds one row to the results table.
   - `newMobile()`, `newPin()`, `newReference()` make new data on every run. Never type a mobile, PIN or reference that must be new.
-- Split the tests into 3 files:
+- Split the tests into 3 files (`<feature>` is my card, for example `card-02`):
   - `<feature>-positive.test.js`: the tests marked `+` that should work
   - `<feature>-negative.test.js`: the tests marked `−` with wrong input or a duplicate
   - `<feature>-security.test.js`: the tests about another user or a missing header

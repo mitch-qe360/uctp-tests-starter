@@ -26,7 +26,7 @@ Automate every node in my charter JSON (at the end) whose "statusId" is "st_api"
 One test per node. Use the node's id, request or steps, and expected result exactly.
 
 3 · FILES
-Give me tests/api/taxpayer-positive.test.js, tests/api/taxpayer-negative.test.js, tests/api/taxpayer-security.test.js.
+Give me tests/api/card-01-positive.test.js, tests/api/card-01-negative.test.js, tests/api/card-01-security.test.js.
 
 4 · RULES
 Follow our project rules:
@@ -39,7 +39,7 @@ Follow our project rules:
   - `AS_PROBE` = the headers of another user. `NO_USER` = the headers without `X-User-ID`.
   - `check(id, test, expected, actual, pass)` adds one row to the results table.
   - `newMobile()`, `newPin()`, `newReference()` make new data on every run. Never type a mobile, PIN or reference that must be new.
-- Split the tests into 3 files:
+- Split the tests into 3 files (`<feature>` is my card, for example `card-02`):
   - `<feature>-positive.test.js`: the tests marked `+` that should work
   - `<feature>-negative.test.js`: the tests marked `−` with wrong input or a duplicate
   - `<feature>-security.test.js`: the tests about another user or a missing header
