@@ -1,4 +1,5 @@
 node_modules/
-playwright-report/
+reports/*
+!reports/.gitkeep
 test-results/
 .DS_Store
