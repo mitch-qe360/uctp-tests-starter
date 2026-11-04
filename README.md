@@ -14,23 +14,26 @@ Site under test: `https://city-treasurer-staging.aiqe.pro` (training copy, made-
 uctp-tests/
 ├── config/environment.js      the site and your name-tag, per environment (the only file you change)
 ├── helpers/api-client.js      api(), check(), finish() and new test data, written once
-├── helpers/web.ts             signIn() for the web tests, written once
+├── helpers/web.ts             signIn(), messageUnder() and api() for web and integration tests, written once
 ├── tests/
 │   ├── api/                   API tests, split by type
 │   │   ├── taxpayer-positive.test.js
 │   │   ├── taxpayer-negative.test.js
 │   │   └── taxpayer-security.test.js
-│   └── web/
-│       └── taxpayer.web.spec.ts   web tests (Playwright) for the same story
+│   ├── web/
+│   │   └── taxpayer.web.spec.ts           web tests (Playwright) for the same story
+│   └── integration/
+│       └── taxpayer.integration.spec.ts   the API and the screen agree
 ├── stories/                   the user stories and their acceptance criteria
 ├── charters/                  the test charters (JSON from Charter360)
-├── prompts/                   your prompt (4 parts) and our project rules for the AI
+├── prompts/                   your 4-part prompt, our project rules, the charter-update prompt, the review checklist
+├── scripts/summary.js         joins all reports into reports/summary.json
 ├── reports/                   the results of each run (CI keeps them for you)
-├── package.json               how to run them: npm run test:api, npm run test:web
+├── package.json               how to run them: npm run test:api, test:web, test:integration
 └── .github/workflows/tests.yml   the CI: runs all tests on every change
 ```
 
-The worked example is **Card 01 · Register a taxpayer**: 10 API tests and 4 web tests for the same story.
+The worked example is **Card 01 · Register a taxpayer**: 34 API tests (T), 9 web tests (W) and 6 integration tests (I) for the same story, all from `charters/card-01-charter.json`.
 
 ## 1 · Make your own copy
 
@@ -51,25 +54,22 @@ Your name-tag is in the top bar of the UCTP site: `You are: Ana-4821` means `Ana
 ## 3 · Watch it run
 
 1. At the top of your repository, click the **Actions** tab.
-2. Click the newest run (top of the list). You see two jobs: **API tests (Node)** and **Web tests (Playwright)**.
+2. Click the newest run (top of the list). You see four jobs: **API tests (Node)**, **Web tests (Playwright)**, **Integration tests (API + screen)** and **Test run summary**.
 3. Wait about 2 minutes. A **green check** means every test passed. A **red X** means a test failed: click the job, then the red step, to read which test and why.
-4. The reports: on the run page, scroll down to **Artifacts**. **api-report** has one results file per test file. **web-report** has the Playwright report: download it, unzip it, open `index.html`.
+4. The results: the run page shows a table of every test (id, result, why it failed). Scroll down to **Artifacts**: **test-run-summary** (`summary.json`, one row per test: give it to the AI to update your charter), **api-report** (one file per API test file), **web-report** and **integration-report** (download, unzip, open `html/index.html`).
 
 ## 4 · Add your tests the team way (a pull request)
 
 At work nobody adds a test straight to the main branch: you propose it, a teammate reviews it, CI runs it, then it is merged.
 
-1. Open the folder **`tests`** › **`api`** (or **`web`**). Click **Add file** (top right) › **Create new file**.
-2. Type the file name the AI gave you, for example `card-02-positive.test.js`. API files must end in `.test.js`, web files in `.web.spec.ts`.
+1. Open the folder **`tests`** › **`api`** (or **`web`**, or **`integration`**). Click **Add file** (top right) › **Create new file**.
+2. Type the file name the AI gave you, for example `card-02-positive.test.js`. API files must end in `.test.js`, web files in `.web.spec.ts`, integration files in `.integration.spec.ts`.
 3. Paste the AI's code.
 4. Click **Commit changes...**. In the box, choose **Create a new branch for this commit and start a pull request**. Name the branch, for example `card-02-api`. Click **Propose changes**.
 5. On the next page click **Create pull request**.
 6. Wait for the checks at the bottom of the pull request: green or red.
 7. **Review:** send the pull request link to your seatmate. They open the **Files changed** tab and check:
-   - one test per charter node, with the node's id (T1, W1, ...)
-   - the expected results are the charter's, word for word
-   - no site address and no name-tag inside a test
-   - nothing missing: compare with the charter
+   the checklist in `prompts/review-checklist.md`: expected results, checks, missing tests.
 
    They click **Review changes**, write what they found, and click **Submit review**.
 8. Fix what the review found (open the file in the pull request, pencil icon, commit to the same branch). When the checks are green, click **Merge pull request** › **Confirm merge**.
@@ -85,4 +85,4 @@ Keep the story, the charter and the prompt with the test: add them the same way 
 
 ## Run it on your own computer (optional)
 
-With Node.js 22: `npm ci`, then `npm run test:api`. For the web tests also run `npx playwright install chromium` once, then `npm run test:web`. To test another site: `BASE_URL=https://… npm run test:api`.
+With Node.js 22: `npm ci`, then `npm run test:api`. For the web tests also run `npx playwright install chromium` once, then `npm run test:web` and `npm run test:integration`. `npm run summary` writes `reports/summary.json`. To test another site: `BASE_URL=https://… npm run test:api`.

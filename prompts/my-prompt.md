@@ -1,27 +1,41 @@
-# Your prompt: 4 parts
+# Your prompt: 4 short parts
 
-Copy the box into a new AI chat. Fill the 4 parts, paste the 2 things at the end, send.
-The same 4 parts work at your company: only the rules file and the charter change.
+The same prompt writes API tests, web tests and integration tests. You change **one word** at the top, write **one line** for the tests, and paste three things.
 
 ```
-You are a tester on my team. Write <API or web> tests for the user story below.
+Write <API | web | integration> tests for my user story.
 
-1 · STORY
-<paste the story, its acceptance criteria, and the example API responses from your card>
+STORY:
+<paste your story and its acceptance criteria>
 
-2 · TESTS
-Automate every node in my charter JSON (at the end) whose "statusId" is "<st_api for API tests, st_ui for web tests>".
-One test per node. Use the node's id, request or steps, and expected result exactly.
+TESTS:
+One test for each node in my charter with the status "<API test | UI journey | Integration>".
+Use the node's id, its request or steps, and its expected result, word for word.
 
-3 · FILES
-Give me <the file names: see the rules>.
+RULES:
+<paste prompts/rules-api.md, rules-web.md or rules-integration.md>
 
-4 · RULES
-Follow our project rules:
-<paste prompts/rules-api.md or prompts/rules-web.md>
-
-MY CHARTER JSON:
+CHARTER:
 <paste the JSON you downloaded from Charter360>
 ```
 
-Filled-in examples: `card-01-api-prompt.md` and `card-01-web-prompt.md`.
+## What each part is for
+
+| Part | It tells the AI | Who writes it | Changes for the next story? |
+|---|---|---|---|
+| first line | what kind of tests | you: one word | sometimes |
+| **STORY** | what the clerk does and must see | the BA (you paste it) | yes |
+| **TESTS** | which charter nodes to automate | you: one word (the status) | sometimes |
+| **RULES** | how **our team** writes tests: files, helpers, one example | the team, once | no (only at a new company) |
+| **CHARTER** | the tests: ids, inputs, expected results | you, in Charter360 | yes |
+
+Why it's short: the **how** (helpers, file names, style) never changes, so it lives in a rules file. The **what** (story and charter) is yours.
+
+| Kind | Status in the charter | Rules file | The AI gives you |
+|---|---|---|---|
+| API | API test (green) | `rules-api.md` | `tests/api/card-NN-positive.test.js`, `-negative`, `-security` |
+| web | UI journey (blue) | `rules-web.md` | `tests/web/card-NN.web.spec.ts` |
+| integration | Integration (purple) | `rules-integration.md` | `tests/integration/card-NN.integration.spec.ts` |
+
+Card 01, filled in: `card-01-api-prompt.md`, `card-01-web-prompt.md`, `card-01-integration-prompt.md`.
+After the run: `update-charter-prompt.md`. Before you commit: `review-checklist.md`.
