@@ -1,12 +1,13 @@
 {
   "name": "uctp-tests",
   "private": true,
-  "description": "My UCTP test project: API tests (Node) and web tests (Playwright) for the same user stories, run by GitHub Actions on every change",
+  "description": "My UCTP test project: API, web and integration tests for the same user stories, run by GitHub Actions on every change",
   "scripts": {
     "test:api": "node scripts/run-api-tests.js",
-    "test:web": "playwright test",
-    "test": "npm run test:api && npm run test:web",
-    "report": "playwright show-report reports/web"
+    "test:web": "playwright test tests/web",
+    "test:integration": "playwright test tests/integration",
+    "summary": "node scripts/summary.js",
+    "test": "npm run test:api && npm run test:web && npm run test:integration"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0"
