@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Test run 20261105-133724</title>
+<title>Test run 20261105-143736</title>
 <style>
 :root{--ok:#15803d;--flaky:#b45309;--bad:#b91c1c;--blocked:#d97706;--grey:#6b7280;--line:#e5e7eb}
 body{font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:24px;color:#111827;background:#fff}
@@ -19,14 +19,15 @@ img{max-width:100%;border:1px solid var(--line)}
 .pill.blocked{background:var(--blocked)}.pill.not_tested{background:var(--grey)}
 .hint{color:var(--grey);font-size:13px}
 .msg{background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:8px 12px;margin:0 0 12px}
-@media print{tr.detail{display:table-row} .hint,.pdf{display:none} body{margin:0}}
+.print{font:inherit;padding:6px 14px;border:1px solid #1d4ed8;background:#1d4ed8;color:#fff;border-radius:6px;cursor:pointer}
+@media print{tr.detail{display:table-row} .noprint{display:none} body{margin:0} tr{break-inside:avoid} img{max-height:90vh}}
 </style></head><body>
-<h1>Test run 20261105-133724</h1>
-<p class="meta">https://city-treasurer-staging.aiqe.pro · browsers: chrome · 2026-11-05T05:37:24.546Z to 2026-11-05T05:37:31.012Z</p>
+<h1>Test run 20261105-143736</h1>
+<p class="meta">https://city-treasurer-staging.aiqe.pro · browsers: chrome · 2026-11-05T06:37:36.213Z to 2026-11-05T06:37:44.146Z</p>
 <div class="story">Card 01 · TRN-01 · Register a taxpayer</div>
 <div class="counts"><div class="count"><b>3</b>Passed</div><div class="count"><b>0</b>Flaky</div><div class="count"><b>0</b>Failed</div><div class="count"><b>0</b>Blocked</div><div class="count"><b>46</b>Not tested</div></div>
 
-<p class="pdf"><a href="Card%2001%20%C2%B7%20TRN-01%20%C2%B7%20Register%20a%20taxpayer%20-%202026-11-05%20133724.pdf">Open the PDF</a> <span class="hint">· Click a red or amber row to see why.</span></p>
+<p class="noprint"><button class="print" type="button" onclick="window.print()">Download PDF</button> <span class="hint">Choose "Save as PDF" in the print window. Click a red or amber row to see why.</span></p>
 <table><thead><tr><th>Id</th><th>AC</th><th>Test</th><th>Browser</th><th>Result</th></tr></thead><tbody>
 <tr class="row passed" data-i="0">
 <td>A1</td><td>AC-1</td><td>create a taxpayer using &quot;Ana Dela Cruz&quot; and a new mobile, no email</td><td>api</td><td><span class="pill passed">Passed</span></td></tr>

@@ -224,13 +224,14 @@ test('summary has the contract shape, counts and not_tested from the charter', (
     { id: 'A10', title: 'A10 · legacy', browser: 'api', status: 'passed', error: null, screenshot: null }];
   const s = buildSummary({ runId: '20261105-143000', startedAt: 'a', finishedAt: 'b', baseUrl: 'https://x', browsers: ['chrome'], charter, rows });
   assert.deepEqual(Object.keys(s).filter(k => k !== 'not_tested'),
-    ['run_id', 'started_at', 'finished_at', 'base_url', 'browsers', 'story', 'counts', 'results', 'report', 'pdf', 'messages', 'pushed', 'push_message']);
+    ['run_id', 'started_at', 'finished_at', 'base_url', 'browsers', 'story', 'counts', 'results', 'report', 'messages', 'pushed', 'push_message']);
   assert.equal(s.story, 'Card 99 · Story');
   assert.deepEqual(s.counts, { passed: 3, flaky: 1, failed: 1, blocked: 5, not_tested: 1 });
   assert.deepEqual(s.not_tested, ['I2']);
   for (const r of s.results) assert.deepEqual(Object.keys(r), ['id', 'title', 'browser', 'status', 'error', 'screenshot']);
   const html = reportHtml(s);
-  assert.match(html, /report\.pdf/);
+  assert.match(html, /window\.print\(\)/);
+  assert.equal('pdf' in s, false);
   assert.doesNotMatch(html, /<script src|<link /, 'no external assets');
   assert.match(html, /Not tested/);
 });
@@ -268,11 +269,10 @@ test('report links are relative, so it works from file:// and from the runner', 
     rows: [{ id: 'W1', title: 'W1 · AC-1 · open the form', browser: 'chrome', status: 'failed', error: 'e', screenshot: 'artifacts/chrome/w1/test-failed-1.png' }] });
   const html = reportHtml(s);
   const links = [...html.matchAll(/(?:href|src)="([^"]+)"/g)].map(m => m[1]);
-  assert.deepEqual(links, ['report.pdf', 'artifacts/chrome/w1/test-failed-1.png']);
-  s.pdf = 'Card 01 - 2026-11-05 143000.pdf';
+  assert.deepEqual(links, ['artifacts/chrome/w1/test-failed-1.png']);
   s.results[0].screenshot = 'Card 01 - 2026-11-05 143000/artifacts/chrome/x.png';
   const links2 = [...reportHtml(s).matchAll(/(?:href|src)="([^"]+)"/g)].map(m => m[1]);
-  assert.deepEqual(links2, ['Card%2001%20-%202026-11-05%20143000.pdf', 'Card%2001%20-%202026-11-05%20143000/artifacts/chrome/x.png']);
+  assert.deepEqual(links2, ['Card%2001%20-%202026-11-05%20143000/artifacts/chrome/x.png']);
   assert.match(html, /<th>Id<\/th><th>AC<\/th><th>Test<\/th><th>Browser<\/th><th>Result<\/th>/);
   assert.match(html, /<td>W1<\/td><td>AC-1<\/td><td>open the form<\/td>/);
 });
@@ -285,7 +285,6 @@ test('file names: <SUT> - <day> <time>, in test-runs/<day>/', () => {
   const p = runPaths('/r', '20261105-143000', 'Card 01');
   assert.equal(p.dayDir, path.join('/r', 'test-runs', '2026-11-05'));
   assert.equal(p.html, 'Card 01 - 2026-11-05 143000.html');
-  assert.equal(p.pdf, 'Card 01 - 2026-11-05 143000.pdf');
   assert.equal(p.json, 'Card 01 - 2026-11-05 143000.json');
   assert.equal(p.assetsDir, path.join('/r', 'test-runs', '2026-11-05', 'Card 01 - 2026-11-05 143000'));
   assert.equal(linkTo('a b/c#d.png'), 'a%20b/c%23d.png');

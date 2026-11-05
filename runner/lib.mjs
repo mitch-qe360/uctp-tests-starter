@@ -1,6 +1,6 @@
 // Shared by the runner (runner/runner.mjs) and npm run test:watch (scripts/test-watch.mjs):
 // one test run = save the charter, API tests once, web + integration tests in each browser,
-// then test-runs/<YYYY-MM-DD>/<SUT> - <YYYY-MM-DD HHMMSS>.html (+ .pdf, .json, and a folder with the
+// then test-runs/<YYYY-MM-DD>/<SUT> - <YYYY-MM-DD HHMMSS>.html (+ .json, and a folder with the
 // screenshots), refresh test-runs/index.html (the list GitHub Pages shows), open the report, commit and push.
 //
 // Only fixed commands run here (node + Playwright's CLI, git), always as argument arrays, never a shell.
@@ -51,7 +51,7 @@ export function sutName(charter) {
 export function runPaths(root, runId, sut) {
   const dayDir = path.join(root, 'test-runs', runDay(runId));
   const base = `${sut} - ${runDay(runId)} ${runTime(runId)}`;
-  return { dayDir, base, assetsDir: path.join(dayDir, base), html: `${base}.html`, pdf: `${base}.pdf`, json: `${base}.json` };
+  return { dayDir, base, assetsDir: path.join(dayDir, base), html: `${base}.html`, json: `${base}.json` };
 }
 
 // "A b/c d.png" -> "A%20b/c%20d.png": a relative link that works from file:// and over http.
@@ -168,7 +168,6 @@ export function buildSummary({ runId, startedAt, finishedAt, baseUrl, browsers, 
     results: rows,
     not_tested: notTested,
     report: 'index.html',      // set by runAll: "<SUT> - <day> <time>.html", relative to test-runs/<day>/
-    pdf: 'report.pdf',
     messages: [],
     pushed: false,
     push_message: '',
@@ -216,14 +215,15 @@ img{max-width:100%;border:1px solid var(--line)}
 .pill.blocked{background:var(--blocked)}.pill.not_tested{background:var(--grey)}
 .hint{color:var(--grey);font-size:13px}
 .msg{background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:8px 12px;margin:0 0 12px}
-@media print{tr.detail{display:table-row} .hint,.pdf{display:none} body{margin:0}}
+.print{font:inherit;padding:6px 14px;border:1px solid #1d4ed8;background:#1d4ed8;color:#fff;border-radius:6px;cursor:pointer}
+@media print{tr.detail{display:table-row} .noprint{display:none} body{margin:0} tr{break-inside:avoid} img{max-height:90vh}}
 </style></head><body>
 <h1>Test run ${esc(summary.run_id)}</h1>
 <p class="meta">${esc(summary.base_url)} · browsers: ${esc((summary.browsers || []).join(', '))} · ${esc(summary.started_at)} to ${esc(summary.finished_at)}</p>
 ${summary.story ? `<div class="story">${esc(summary.story)}</div>` : ''}
 <div class="counts">${Object.keys(label).map(k => `<div class="count"><b>${c[k] || 0}</b>${label[k]}</div>`).join('')}</div>
 ${(summary.messages || []).map(m => `<p class="msg">${esc(m)}</p>`).join('')}
-<p class="pdf">${summary.pdf ? `<a href="${esc(linkTo(summary.pdf))}">Open the PDF</a>` : esc(summary.pdf_message || '')} <span class="hint">· Click a red or amber row to see why.</span></p>
+<p class="noprint"><button class="print" type="button" onclick="window.print()">Download PDF</button> <span class="hint">Choose "Save as PDF" in the print window. Click a red or amber row to see why.</span></p>
 <table><thead><tr><th>Id</th><th>AC</th><th>Test</th><th>Browser</th><th>Result</th></tr></thead><tbody>
 ${body}
 </tbody></table>
@@ -286,20 +286,6 @@ export function openInChrome(url) {
   if (process.platform === 'darwin') return tryRun('open', ['-a', 'Google Chrome', url]) || tryRun('open', [url]);
   if (process.platform === 'win32') return tryRun('cmd', ['/c', 'start', 'chrome', url]) || tryRun('cmd', ['/c', 'start', '""', url]);
   return tryRun('xdg-open', [url]);
-}
-
-// Print index.html to report.pdf with Playwright's Chromium.
-async function printPdf(htmlFile, pdfFile) {
-  const { chromium } = await import('@playwright/test');
-  const browser = await chromium.launch();
-  try {
-    const page = await browser.newPage();
-    await page.goto(pathToFileURL(htmlFile).href);
-    await page.pdf({ path: pdfFile, format: 'A4', printBackground: true,
-      margin: { top: '12mm', bottom: '12mm', left: '10mm', right: '10mm' } });
-  } finally {
-    await browser.close();
-  }
 }
 
 // The test titles a step will run (listing starts no browser). [] if unknown.
@@ -467,23 +453,15 @@ export async function runAll(opts) {
     rows.push(...readPwRows(jsonFile, b, P.dayDir));
   }
 
-  // 4. The report: <SUT> - <day> <time>.html, .pdf and .json in test-runs/<day>/, and the runs list.
+  // 4. The report: <SUT> - <day> <time>.html and .json in test-runs/<day>/, and the runs list.
   tell({ step: 'report', message: 'Writing the report' });
   const summary = buildSummary({ runId, startedAt, finishedAt: new Date().toISOString(), baseUrl: opts.baseUrl,
     browsers, charter: opts.charter, rows });
-  Object.assign(summary, { report: P.html, pdf: P.pdf, folder: `test-runs/${runDay(runId)}`, messages });
+  Object.assign(summary, { report: P.html, folder: `test-runs/${runDay(runId)}`, messages });
   const htmlFile = path.join(P.dayDir, P.html);
   const writeOut = () => fs.writeFileSync(path.join(P.dayDir, P.json), JSON.stringify(summary, null, 2));
   writeOut();
   fs.writeFileSync(htmlFile, reportHtml(summary));
-  try {
-    await printPdf(htmlFile, path.join(P.dayDir, P.pdf));
-  } catch (e) {
-    summary.pdf = null;
-    summary.pdf_message = `PDF not made: ${stripAnsi(e.message).split('\n')[0]}. Fix: npx playwright install chromium`;
-    fs.writeFileSync(htmlFile, reportHtml(summary));
-    writeOut();
-  }
   writeRunsIndex(root);
 
   // 5. Open the report in Chrome.

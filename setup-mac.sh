@@ -9,7 +9,7 @@
 #   4. Firefox        (Homebrew if you have it; else Playwright's own Firefox is enough)
 #   5. Your repo      (run this inside your uctp-tests folder, or give your repo URL: see below)
 #   6. npm ci         (the project's packages)
-#   7. Playwright browsers: Chrome (if missing), Firefox, Chromium (prints the PDF report)
+#   7. Playwright browsers: Chrome (if missing), Firefox
 #   8. npm run doctor (checks everything; all lines must be ✅)
 # [admin] = your Mac asks for your password. If you are not an admin on this Mac, ask your IT admin.
 #
@@ -110,8 +110,8 @@ if [ "$NEED_CHROME" = 1 ]; then
   echo "   Installing Google Chrome (your Mac asks for your password: admin needed)..."
   npx playwright install chrome || stop "Google Chrome did not install. Install it from https://www.google.com/chrome, then run this script again."
 fi
-npx playwright install firefox chromium || stop "Playwright could not download its browsers. Check your internet, then run this script again."
-ok "Chrome, Firefox and Chromium ready"
+npx playwright install firefox || stop "Playwright could not download its browsers. Check your internet, then run this script again."
+ok "Chrome and Firefox ready"
 
 # ---- 8. Doctor ----
 step 8 "Check everything (npm run doctor)"
