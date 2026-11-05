@@ -1,7 +1,7 @@
 // Shared by the runner (runner/runner.mjs) and npm run test:watch (scripts/test-watch.mjs):
 // one test run = save the charter, API tests once, web + integration tests in each browser,
-// then test-runs/<YYYY-MM-DD>/<SUT> - <YYYY-MM-DD HHMMSS>.html (+ .json, and a folder with the
-// screenshots), refresh test-runs/index.html (the list GitHub Pages shows), open the report, commit and push.
+// then one folder per run, test-runs/<YYYY-MM-DD>/<SUT> - <YYYY-MM-DD HHMMSS>/, holding that name's .html
+// (the report), .json and the screenshots; refresh test-runs/index.html (the list GitHub Pages shows), open the report, commit and push.
 //
 // Only fixed commands run here (node + Playwright's CLI, git), always as argument arrays, never a shell.
 import fs from 'node:fs';
@@ -47,11 +47,22 @@ export function sutName(charter) {
   return s || 'Tests';
 }
 
-// Where one run's files go. The runner serves test-runs/<day>/ at /report/<run_id>/.
+// Where one run's files go: one folder per run, test-runs/<day>/<base>/ with <base>.html, <base>.json and the
+// screenshots. The runner serves that folder at /report/<run_id>/.
 export function runPaths(root, runId, sut) {
   const dayDir = path.join(root, 'test-runs', runDay(runId));
   const base = `${sut} - ${runDay(runId)} ${runTime(runId)}`;
-  return { dayDir, base, assetsDir: path.join(dayDir, base), html: `${base}.html`, json: `${base}.json` };
+  const runDir = path.join(dayDir, base);
+  return { dayDir, base, runDir, assetsDir: runDir, html: `${base}.html`, json: `${base}.json` };
+}
+
+// The folder of an earlier run, from its run_id (null if there is none).
+export function findRunDir(root, runId) {
+  const day = path.join(root, 'test-runs', runDay(runId));
+  const tail = ` - ${runDay(runId)} ${runTime(runId)}`;
+  if (!fs.existsSync(day)) return null;
+  const name = fs.readdirSync(day).find(f => f.endsWith(tail) && fs.statSync(path.join(day, f)).isDirectory());
+  return name ? path.join(day, name) : null;
 }
 
 // "A b/c d.png" -> "A%20b/c%20d.png": a relative link that works from file:// and over http.
@@ -352,20 +363,27 @@ export function writeRunsIndex(root = ROOT) {
   const top = path.join(root, 'test-runs');
   const runs = [];
   for (const day of fs.existsSync(top) ? fs.readdirSync(top).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)) : []) {
-    for (const f of fs.readdirSync(path.join(top, day)).filter(f => f.endsWith('.json'))) {
+    const dayDir = path.join(top, day);
+    const files = [];   // [folder relative to the day ('' = old layout), json file]
+    for (const f of fs.readdirSync(dayDir)) {
+      const full = path.join(dayDir, f);
+      if (f.endsWith('.json')) files.push(['', f]);
+      else if (fs.statSync(full).isDirectory()) for (const g of fs.readdirSync(full).filter(g => g.endsWith('.json'))) files.push([f, g]);
+    }
+    for (const [dir, f] of files) {
       try {
-        const s = JSON.parse(fs.readFileSync(path.join(top, day, f), 'utf8'));
-        if (s.run_id && s.counts) runs.push({ day, s });
+        const s = JSON.parse(fs.readFileSync(path.join(dayDir, dir, f), 'utf8'));
+        if (s.run_id && s.counts) runs.push({ day, dir, s });
       } catch { /* not a summary */ }
     }
   }
   runs.sort((a, b) => b.s.run_id.localeCompare(a.s.run_id));
   const c = s => `${s.counts.passed} passed, ${s.counts.flaky} flaky, ${s.counts.failed} failed, ${s.counts.blocked} blocked, ${s.counts.not_tested} not tested`;
   let lastDay = '';
-  const items = runs.map(({ day, s }) => {
+  const items = runs.map(({ day, dir, s }) => {
     const head = day !== lastDay ? `${lastDay ? '</ul>' : ''}<h2>${esc(day)}</h2><ul>` : '';
     lastDay = day;
-    return `${head}<li><a href="${esc(linkTo(`${day}/${s.report}`))}">${esc(s.report.replace(/\.html$/, ''))}</a> <span>${esc(c(s))}</span></li>`;
+    return `${head}<li><a href="${esc(linkTo([day, dir, s.report].filter(Boolean).join('/')))}">${esc(s.report.replace(/\.html$/, ''))}</a> <span>${esc(c(s))}</span></li>`;
   }).join('\n');
   fs.mkdirSync(top, { recursive: true });
   fs.writeFileSync(path.join(top, 'index.html'), `<!doctype html>
@@ -483,7 +501,7 @@ export async function runAll(opts) {
     const jsonFile = path.join(rawDir, 'api.json');
     const env = { ...baseEnv, PW_JSON_FILE: jsonFile, PW_OUTPUT_DIR: path.join(P.assetsDir, 'artifacts', 'api') };
     await runNode([PW_CLI, 'test', ...apiArgs], { env, onLine: countLine, control });
-    if (!control.stopped) { rows.push(...readPwRows(jsonFile, 'api', P.dayDir)); finished.add('api'); }
+    if (!control.stopped) { rows.push(...readPwRows(jsonFile, 'api', P.runDir)); finished.add('api'); }
   }
 
   // 3. Web + integration tests in each browser, one browser at a time.
@@ -514,10 +532,10 @@ export async function runAll(opts) {
     const args = [PW_CLI, 'test', ...browserArgs(b)];
     if (opts.headed) args.push('--headed');
     await runNode(args, { env, onLine: countLine, control });
-    if (!control.stopped) { rows.push(...readPwRows(jsonFile, b, P.dayDir)); finished.add(b); }
+    if (!control.stopped) { rows.push(...readPwRows(jsonFile, b, P.runDir)); finished.add(b); }
   }
 
-  // 4. The report: <SUT> - <day> <time>.html and .json in test-runs/<day>/, and the runs list.
+  // 4. The report: <SUT> - <day> <time>.html and .json in the run's folder, and the runs list.
   // Stopped: the steps that didn't finish count as Not tested.
   if (control.stopped) {
     const steps = [...(wantApi ? [['api', apiArgs]] : []), ...(wantBrowsers ? browsers.map(b => [b, browserArgs(b)]) : [])];
@@ -529,14 +547,14 @@ export async function runAll(opts) {
   tell({ step: 'report', message: 'Writing the report' });
   const summary = buildSummary({ runId, startedAt, finishedAt: new Date().toISOString(), baseUrl: opts.baseUrl,
     browsers, charter: opts.charter, rows, only });
-  Object.assign(summary, { report: P.html, folder: `test-runs/${runDay(runId)}`, messages });
+  Object.assign(summary, { report: P.html, folder: `test-runs/${runDay(runId)}/${P.base}`, messages });
   // Where this report will be on GitHub Pages (only when the run is pushed).
   summary.pages_url = (opts.push !== false && !control.stopped)
-    ? pagesUrl(repoInfo(root).remote, runDay(runId), P.html) : null;
+    ? pagesUrl(repoInfo(root).remote, runDay(runId), `${P.base}/${P.html}`) : null;
   if (only) summary.only = only;
   if (control.stopped) summary.stopped = true;
-  const htmlFile = path.join(P.dayDir, P.html);
-  const writeOut = () => fs.writeFileSync(path.join(P.dayDir, P.json), JSON.stringify(summary, null, 2));
+  const htmlFile = path.join(P.runDir, P.html);
+  const writeOut = () => fs.writeFileSync(path.join(P.runDir, P.json), JSON.stringify(summary, null, 2));
   writeOut();
   fs.writeFileSync(htmlFile, reportHtml(summary));
   writeRunsIndex(root);
@@ -572,10 +590,10 @@ export async function runAll(opts) {
   return summary;
 }
 
-function readPwRows(jsonFile, browser, dayDir) {
+function readPwRows(jsonFile, browser, runDir) {
   if (!fs.existsSync(jsonFile)) return [];
   try {
-    return rowsFromPlaywright(JSON.parse(fs.readFileSync(jsonFile, 'utf8')), browser, dayDir);
+    return rowsFromPlaywright(JSON.parse(fs.readFileSync(jsonFile, 'utf8')), browser, runDir);
   } catch {
     return [{ id: '?', title: `${browser}: the results file could not be read`, browser, status: 'blocked', error: jsonFile, screenshot: null }];
   }

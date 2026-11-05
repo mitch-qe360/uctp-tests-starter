@@ -143,15 +143,16 @@ test('/run checks base_url and browsers, sanitizes name, and answers 409 while b
 });
 
 test('/report serves files from the run folder only', () => withRunner(async ({ call, root }) => {
-  const dir = path.join(root, 'test-runs', '2026-11-05');
+  const dir = path.join(root, 'test-runs', '2026-11-05', 'Card 01 - 2026-11-05 143000');
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'Card 01 - 2026-11-05 143000.html'), '<h1>hi</h1>');
+  fs.writeFileSync(path.join(dir, '..', 'other.txt'), 'no');
   fs.writeFileSync(path.join(root, 'secret.txt'), 'no');
   const res = await call('GET', `/report/20261105-143000/${encodeURIComponent('Card 01 - 2026-11-05 143000.html')}`);
   assert.equal(res.status, 200);
   assert.match(res.headers.get('content-type'), /text\/html/);
   assert.equal(await res.text(), '<h1>hi</h1>');
-  for (const p of ['/report/20261105-143000/..%2F..%2Fsecret.txt', '/report/..%2Fsecret.txt/x', '/report/20261105-143000/%2e%2e/%2e%2e/secret.txt']) {
+  for (const p of ['/report/20261105-143000/..%2F..%2Fsecret.txt', '/report/..%2Fsecret.txt/x', '/report/20261105-143000/%2e%2e/other.txt', '/report/20261105-143000/%2e%2e/%2e%2e/secret.txt', '/report/20261105-150000/x.html']) {
     assert.notEqual((await call('GET', p)).status, 200, p);
   }
 }));
@@ -277,7 +278,7 @@ test('report links are relative, so it works from file:// and from the runner', 
   assert.match(html, /<td>W1<\/td><td>AC-1<\/td><td>open the form<\/td>/);
 });
 
-test('file names: <SUT> - <day> <time>, in test-runs/<day>/', () => {
+test('file names: one folder per run, test-runs/<day>/<SUT> - <day> <time>/', () => {
   assert.equal(sutName({ root: { text: 'Card 01 · TRN-01 · Register a taxpayer' } }), 'Card 01 · TRN-01 · Register a taxpayer');
   assert.equal(sutName({ root: { text: 'A/B: "C"?\nsecond line' } }), 'A-B- -C');
   assert.equal(sutName(null), 'Tests');
@@ -286,15 +287,16 @@ test('file names: <SUT> - <day> <time>, in test-runs/<day>/', () => {
   assert.equal(p.dayDir, path.join('/r', 'test-runs', '2026-11-05'));
   assert.equal(p.html, 'Card 01 - 2026-11-05 143000.html');
   assert.equal(p.json, 'Card 01 - 2026-11-05 143000.json');
-  assert.equal(p.assetsDir, path.join('/r', 'test-runs', '2026-11-05', 'Card 01 - 2026-11-05 143000'));
+  assert.equal(p.runDir, path.join('/r', 'test-runs', '2026-11-05', 'Card 01 - 2026-11-05 143000'));
+  assert.equal(p.assetsDir, p.runDir);
   assert.equal(linkTo('a b/c#d.png'), 'a%20b/c%23d.png');
 });
 
 test('test-runs/index.html lists runs newest first, linking each report', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'runs-'));
   const put = (day, id, name) => {
-    fs.mkdirSync(path.join(root, 'test-runs', day), { recursive: true });
-    fs.writeFileSync(path.join(root, 'test-runs', day, `${name}.json`), JSON.stringify({ run_id: id, report: `${name}.html`,
+    fs.mkdirSync(path.join(root, 'test-runs', day, name), { recursive: true });
+    fs.writeFileSync(path.join(root, 'test-runs', day, name, `${name}.json`), JSON.stringify({ run_id: id, report: `${name}.html`,
       counts: { passed: 1, flaky: 0, failed: 0, blocked: 0, not_tested: 0 } }));
   };
   put('2026-11-04', '20261104-090000', 'Card 01 - 2026-11-04 090000');
@@ -302,7 +304,7 @@ test('test-runs/index.html lists runs newest first, linking each report', () => 
   writeRunsIndex(root);
   const html = fs.readFileSync(path.join(root, 'test-runs', 'index.html'), 'utf8');
   assert.ok(html.indexOf('2026-11-05') < html.indexOf('2026-11-04'), 'newest day first');
-  assert.match(html, /href="2026-11-05\/Card%2001%20-%202026-11-05%20143000\.html"/);
+  assert.match(html, /href="2026-11-05\/Card%2001%20-%202026-11-05%20143000\/Card%2001%20-%202026-11-05%20143000\.html"/);
   fs.rmSync(root, { recursive: true, force: true });
 });
 

@@ -28,7 +28,7 @@ uctp-tests/
 ├── scripts/summary.js         joins all reports into reports/summary.json
 ├── scripts/doctor.mjs         npm run doctor: is this laptop ready?
 ├── runner/                    npm run runner (for Charter360's RUN) and npm run test:watch
-├── test-runs/                 the reports: <date>/<story> - <date time>.html (+ .json); index.html lists them
+├── test-runs/                 the reports: <date>/<story> - <date time>/ (one folder per run: the .html report, .json, screenshots); index.html lists them
 ├── setup-mac.sh, setup-windows.ps1   install what's missing, before class
 ├── .claude/skills/qe/SKILL.md the QE skill your AI uses
 ├── reports/                   the results of each run (CI keeps them for you)
@@ -102,7 +102,7 @@ If your laptop blocks installs, do it with your IT admin.
 - **From Charter360:** in your `uctp-tests` folder run `npm run runner` and keep that window open. It prints a 6-digit pairing code. In Charter360 open **Environment settings**, type the code, then press **RUN**.
 - **From the terminal (no Charter360):** `npm run test:watch`.
 
-Both do the same run: API tests once, then the web and integration tests in Chrome, then in Firefox. Each browser opens **one window** and every test is a **new tab** in it. The Chrome window stays open after the run so you can click through the tabs and see what each test did; close it yourself (`npm run test:watch`: press Ctrl+C; the runner closes it at the next RUN) (a failing test is re-run up to 3 times; a pass on a re-run shows as **Flaky**). The report opens in Chrome, and everything is saved in `test-runs/<date>/` as `<story> - <date time>.html` and `.json` (screenshots in the folder with the same name), committed and pushed so CI runs too.
+Both do the same run: API tests once, then the web and integration tests in Chrome, then in Firefox. Each browser opens **one window** and every test is a **new tab** in it. The Chrome window stays open after the run so you can click through the tabs and see what each test did; close it yourself (`npm run test:watch`: press Ctrl+C; the runner closes it at the next RUN) (a failing test is re-run up to 3 times; a pass on a re-run shows as **Flaky**). The report opens in Chrome, and everything is saved in one folder per run, `test-runs/<date>/<story> - <date time>/` (the `.html` report, the `.json` and the screenshots), committed and pushed so CI runs too.
 
 Writing web tests: the site shows a **"Your name"** dialog on the first visit that blocks every page; start each web or integration test with `await signIn(page)` (in `helpers/web.ts`, used in `test.beforeEach`), which fills it in.
 
