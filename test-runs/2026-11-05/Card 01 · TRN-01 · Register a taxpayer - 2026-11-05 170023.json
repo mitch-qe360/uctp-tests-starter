@@ -1,7 +1,7 @@
 {
-  "run_id": "20261105-133724",
-  "started_at": "2026-11-05T05:37:24.546Z",
-  "finished_at": "2026-11-05T05:37:31.012Z",
+  "run_id": "20261105-170023",
+  "started_at": "2026-11-05T09:00:23.401Z",
+  "finished_at": "2026-11-05T09:00:30.214Z",
   "base_url": "https://city-treasurer-staging.aiqe.pro",
   "browsers": [
     "chrome"
@@ -12,7 +12,7 @@
     "flaky": 0,
     "failed": 0,
     "blocked": 0,
-    "not_tested": 46
+    "not_tested": 0
   },
   "results": [
     {
@@ -40,58 +40,15 @@
       "screenshot": null
     }
   ],
-  "not_tested": [
-    "A5",
-    "A6",
-    "A7",
-    "A12",
-    "A13",
-    "A14",
-    "A15",
-    "A16",
-    "A17",
-    "W6",
-    "A11",
-    "A18",
-    "A19",
-    "A20",
-    "A21",
-    "A22",
-    "A23",
-    "W8",
-    "A8",
-    "A9",
-    "A10",
-    "A24",
-    "A25",
-    "A26",
-    "A27",
-    "W7",
-    "W2",
-    "A4",
-    "W4",
-    "A28",
-    "A29",
-    "W5",
-    "A30",
-    "A2",
-    "A3",
-    "W3",
-    "W9",
-    "A31",
-    "A32",
-    "A33",
-    "A34",
-    "I2",
-    "I3",
-    "I4",
-    "I5",
-    "I6"
-  ],
-  "report": "Card 01 · TRN-01 · Register a taxpayer - 2026-11-05 133724.html",
-  "pdf": "Card 01 · TRN-01 · Register a taxpayer - 2026-11-05 133724.pdf",
+  "not_tested": [],
+  "report": "Card 01 · TRN-01 · Register a taxpayer - 2026-11-05 170023.html",
   "messages": [],
   "pushed": false,
   "push_message": "Not pushed: NO_PUSH=1 is set.",
-  "folder": "test-runs/2026-11-05"
+  "folder": "test-runs/2026-11-05",
+  "only": [
+    "A1",
+    "W1",
+    "I1"
+  ]
 }

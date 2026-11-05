@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { createRunner } from './runner.mjs';
-import { ROOT, splitTitle, rowsFromPlaywright, buildSummary, sutName, runPaths, writeRunsIndex, browserMissing, linkTo, charterIds, safeName, reportHtml, stripCredentials } from './lib.mjs';
+import { createRunner, busyPortMessage } from './runner.mjs';
+import { ROOT, onlyGrep, splitTitle, rowsFromPlaywright, buildSummary, sutName, runPaths, writeRunsIndex, browserMissing, linkTo, charterIds, safeName, reportHtml, stripCredentials } from './lib.mjs';
 
 const ORIGIN = 'https://qe-360-academy-staging.aiqe.pro';
 const CODE = '123456';
@@ -224,13 +224,14 @@ test('summary has the contract shape, counts and not_tested from the charter', (
     { id: 'A10', title: 'A10 · legacy', browser: 'api', status: 'passed', error: null, screenshot: null }];
   const s = buildSummary({ runId: '20261105-143000', startedAt: 'a', finishedAt: 'b', baseUrl: 'https://x', browsers: ['chrome'], charter, rows });
   assert.deepEqual(Object.keys(s).filter(k => k !== 'not_tested'),
-    ['run_id', 'started_at', 'finished_at', 'base_url', 'browsers', 'story', 'counts', 'results', 'report', 'pdf', 'messages', 'pushed', 'push_message']);
+    ['run_id', 'started_at', 'finished_at', 'base_url', 'browsers', 'story', 'counts', 'results', 'report', 'messages', 'pushed', 'push_message']);
   assert.equal(s.story, 'Card 99 · Story');
   assert.deepEqual(s.counts, { passed: 3, flaky: 1, failed: 1, blocked: 5, not_tested: 1 });
   assert.deepEqual(s.not_tested, ['I2']);
   for (const r of s.results) assert.deepEqual(Object.keys(r), ['id', 'title', 'browser', 'status', 'error', 'screenshot']);
   const html = reportHtml(s);
-  assert.match(html, /report\.pdf/);
+  assert.match(html, /window\.print\(\)/);
+  assert.equal('pdf' in s, false);
   assert.doesNotMatch(html, /<script src|<link /, 'no external assets');
   assert.match(html, /Not tested/);
 });
@@ -268,11 +269,10 @@ test('report links are relative, so it works from file:// and from the runner', 
     rows: [{ id: 'W1', title: 'W1 · AC-1 · open the form', browser: 'chrome', status: 'failed', error: 'e', screenshot: 'artifacts/chrome/w1/test-failed-1.png' }] });
   const html = reportHtml(s);
   const links = [...html.matchAll(/(?:href|src)="([^"]+)"/g)].map(m => m[1]);
-  assert.deepEqual(links, ['report.pdf', 'artifacts/chrome/w1/test-failed-1.png']);
-  s.pdf = 'Card 01 - 2026-11-05 143000.pdf';
+  assert.deepEqual(links, ['artifacts/chrome/w1/test-failed-1.png']);
   s.results[0].screenshot = 'Card 01 - 2026-11-05 143000/artifacts/chrome/x.png';
   const links2 = [...reportHtml(s).matchAll(/(?:href|src)="([^"]+)"/g)].map(m => m[1]);
-  assert.deepEqual(links2, ['Card%2001%20-%202026-11-05%20143000.pdf', 'Card%2001%20-%202026-11-05%20143000/artifacts/chrome/x.png']);
+  assert.deepEqual(links2, ['Card%2001%20-%202026-11-05%20143000/artifacts/chrome/x.png']);
   assert.match(html, /<th>Id<\/th><th>AC<\/th><th>Test<\/th><th>Browser<\/th><th>Result<\/th>/);
   assert.match(html, /<td>W1<\/td><td>AC-1<\/td><td>open the form<\/td>/);
 });
@@ -285,7 +285,6 @@ test('file names: <SUT> - <day> <time>, in test-runs/<day>/', () => {
   const p = runPaths('/r', '20261105-143000', 'Card 01');
   assert.equal(p.dayDir, path.join('/r', 'test-runs', '2026-11-05'));
   assert.equal(p.html, 'Card 01 - 2026-11-05 143000.html');
-  assert.equal(p.pdf, 'Card 01 - 2026-11-05 143000.pdf');
   assert.equal(p.json, 'Card 01 - 2026-11-05 143000.json');
   assert.equal(p.assetsDir, path.join('/r', 'test-runs', '2026-11-05', 'Card 01 - 2026-11-05 143000'));
   assert.equal(linkTo('a b/c#d.png'), 'a%20b/c%23d.png');
@@ -322,4 +321,58 @@ test('a browser that is not installed: its tests count as not tested, with the m
   assert.equal(s.counts.not_tested, 1);
   s.messages = [msg];
   assert.match(reportHtml(s), /Firefox isn&#39;t installed/);
+});
+
+test('port busy: our runner gets its folder, code and how to stop it; another program gets a clear message', () => {
+  const ours = busyPortMessage({ status: { ok: true, version: '1', repo: 'uctp-tests', paired: true }, paired: true, code: '123456', pid: '4242' });
+  assert.match(ours, /Your runner is already running \(folder: uctp-tests, started earlier\)\. Use it: pairing code 123456\./);
+  assert.match(ours, /To restart it, stop it with: kill 4242/);
+  const other = busyPortMessage({ status: { ok: true, version: '1', repo: 'other-repo', paired: false }, paired: false, code: '123456', pid: '' });
+  assert.match(other, /another folder \(other-repo\)/);
+  assert.doesNotMatch(other, /123456/);
+  assert.match(other, /find its PID/);
+  assert.match(busyPortMessage({ status: null, pid: '99' }), /^Another program uses port 7357.*kill 99/);
+});
+
+test('POST /stop: 409 when idle, 401 without code, and a running job ends as stopped', () => withRunner(async ({ call }) => {
+  assert.equal((await call('POST', '/stop', { headers: good, body: {} })).status, 409);
+  assert.equal((await call('POST', '/stop', { headers: { Origin: ORIGIN }, body: {} })).status, 401);
+  const { run_id } = await (await call('POST', '/run', { headers: good, body: { base_url: 'https://city-treasurer-staging.aiqe.pro', browsers: ['chrome'] } })).json();
+  const stop = await call('POST', '/stop', { headers: good, body: {} });
+  assert.equal(stop.status, 200);
+  assert.deepEqual(await stop.json(), { stopping: true, run_id });
+  let r;
+  for (let i = 0; i < 50; i++) { r = await (await call('GET', `/run/${run_id}`, { headers: good })).json(); if (r.state !== 'running') break; await new Promise(x => setTimeout(x, 10)); }
+  assert.equal(r.state, 'stopped');
+  assert.equal(r.message, 'Stopped by you');
+  assert.equal(r.summary.stopped, true);
+  assert.equal((await call('POST', '/stop', { headers: good, body: {} })).status, 409);
+}, async job => { while (!job.control.stopped) await new Promise(x => setTimeout(x, 5)); return { run_id: job.runId, stopped: true }; }));
+
+test('POST /run: only and headed are checked and passed on', async () => {
+  const jobs = [];
+  await withRunner(async ({ call }) => {
+    const base = { base_url: 'https://city-treasurer-staging.aiqe.pro', browsers: ['chrome'] };
+    for (const only of [[], ['T1'], ['A1; rm'], ['a1'], ['A1234'], 'A1', Array.from({ length: 51 }, (_, i) => `A${i + 1}`)]) {
+      assert.equal((await call('POST', '/run', { headers: good, body: { ...base, only } })).status, 400, JSON.stringify(only));
+    }
+    assert.equal((await call('POST', '/run', { headers: good, body: { ...base, headed: 'no' } })).status, 400);
+    assert.equal((await call('POST', '/run', { headers: good, body: { ...base, only: ['A1', 'W3', 'A1'], headed: false } })).status, 200);
+    await new Promise(x => setTimeout(x, 20));
+    assert.deepEqual(jobs[0].only, ['A1', 'W3']);
+    assert.equal(jobs[0].headed, false);
+  }, async job => { jobs.push(job); return { run_id: job.runId }; });
+});
+
+test('only: the grep picks exactly those ids, and Not tested counts only them', () => {
+  const re = new RegExp(onlyGrep(['A1', 'W3']));
+  assert.ok(re.test('TRN-01 Register a taxpayer (API) A1 · AC-1 · create'));
+  assert.ok(re.test('W3 · AC-2 · see it'));
+  assert.ok(!re.test('TRN-01 (API) A10 · AC-6 · email'));
+  assert.ok(!re.test('TRN-01 (web) W33 · x'));
+  assert.ok(!re.test('TRN-01 (API) A2 · AC-2 · read back the taxpayer from A1 by its taxpayer_id'));
+  const charter = { root: { text: 'S', children: [{ text: 'A1 · x' }, { text: 'A2 · y' }, { text: 'W3 · z' }] } };
+  const s = buildSummary({ runId: 'r', startedAt: '', finishedAt: '', baseUrl: '', browsers: [], charter, only: ['A1', 'W3'],
+    rows: [{ id: 'A1', title: 'A1 · x', browser: 'api', status: 'passed', error: null, screenshot: null }] });
+  assert.deepEqual(s.not_tested, ['W3']);
 });

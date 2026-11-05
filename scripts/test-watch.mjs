@@ -1,11 +1,11 @@
 // npm run test:watch -- the same run as Charter360's RUN button, from the terminal (no Charter360).
 // API tests once, then web + integration tests in each browser from config/environment.js (headed),
-// then the report in test-runs/<YYYY-MM-DD>/ (<SUT> - <date time>.html, .pdf, .json), open it, commit and push.
+// then the report in test-runs/<YYYY-MM-DD>/ (<SUT> - <date time>.html and .json), open it, commit and push.
 //
 //   npm run test:watch                                  newest charter in charters/
 //   npm run test:watch -- charters/card-01-charter.json a chosen charter (for "Not tested")
 //   HEADED=0 hides the browsers. NO_PUSH=1 skips the commit and push.
-//   BROWSERS=chrome runs only these browsers. GREP="A1 |W1 " runs only matching tests.
+//   BROWSERS=chrome runs only these browsers. ONLY=A1,W3 runs only those test ids.
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT, loadEnvironment, runAll, closeHeldBrowsers, heldBrowserCount } from '../runner/lib.mjs';
@@ -35,7 +35,7 @@ const summary = await runAll({
   saveCharter: false,      // the charter file is already in charters/: don't write a copy
   baseUrl: env.BASE_URL,
   browsers: process.env.BROWSERS ? process.env.BROWSERS.split(',').map(b => b.trim()).filter(b => ['chrome', 'firefox'].includes(b)) : env.browsers,
-  grep: process.env.GREP || undefined,
+  only: process.env.ONLY ? process.env.ONLY.split(',').map(s => s.trim()).filter(id => /^[AWI]\d{1,3}$/.test(id)) : undefined,
   headed: process.env.HEADED !== '0',
   push: process.env.NO_PUSH !== '1',
   open: process.env.NO_OPEN !== '1',

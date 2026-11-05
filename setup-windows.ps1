@@ -8,7 +8,7 @@
 #   4. Firefox        (winget install Mozilla.Firefox)
 #   5. Your repo      (run this inside your uctp-tests folder, or give your repo URL: see below)
 #   6. npm ci         (the project's packages)
-#   7. Playwright browsers: Chrome (if missing), Firefox, Chromium (prints the PDF report)
+#   7. Playwright browsers: Chrome (if missing), Firefox
 #   8. npm run doctor (checks everything; all lines must be ✅)
 # [admin] = Windows asks "Do you want to allow this app to make changes?". Click Yes.
 #           If it asks for an admin password you don't have, ask your IT admin.
@@ -105,9 +105,9 @@ if ($needChrome) {
   npx playwright install chrome
   if ($LASTEXITCODE -ne 0) { Stop-Setup 'Google Chrome did not install. Install it from https://www.google.com/chrome, then run this script again.' }
 }
-npx playwright install firefox chromium
+npx playwright install firefox
 if ($LASTEXITCODE -ne 0) { Stop-Setup 'Playwright could not download its browsers. Check your internet, then run this script again.' }
-Ok 'Chrome, Firefox and Chromium ready'
+Ok 'Chrome and Firefox ready'
 
 # ---- 8. Doctor ----
 Step 8 'Check everything (npm run doctor)'

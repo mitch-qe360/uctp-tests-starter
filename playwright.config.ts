@@ -37,6 +37,9 @@ export default defineConfig({
       name: 'api',
       testDir: 'tests/api',
       testMatch: /.*\.spec\.(ts|js|mjs)$/,
+      // API tests never open a browser: a test here that asks for page/browser fails at once
+      // (it connects to a closed port) instead of launching Chrome.
+      use: { connectOptions: { wsEndpoint: 'ws://127.0.0.1:9/api-tests-use-request-not-page' } },
     },
     {
       name: 'chrome',

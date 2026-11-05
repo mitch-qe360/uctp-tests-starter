@@ -1,6 +1,6 @@
 // Shared by the runner (runner/runner.mjs) and npm run test:watch (scripts/test-watch.mjs):
 // one test run = save the charter, API tests once, web + integration tests in each browser,
-// then test-runs/<YYYY-MM-DD>/<SUT> - <YYYY-MM-DD HHMMSS>.html (+ .pdf, .json, and a folder with the
+// then test-runs/<YYYY-MM-DD>/<SUT> - <YYYY-MM-DD HHMMSS>.html (+ .json, and a folder with the
 // screenshots), refresh test-runs/index.html (the list GitHub Pages shows), open the report, commit and push.
 //
 // Only fixed commands run here (node + Playwright's CLI, git), always as argument arrays, never a shell.
@@ -51,7 +51,7 @@ export function sutName(charter) {
 export function runPaths(root, runId, sut) {
   const dayDir = path.join(root, 'test-runs', runDay(runId));
   const base = `${sut} - ${runDay(runId)} ${runTime(runId)}`;
-  return { dayDir, base, assetsDir: path.join(dayDir, base), html: `${base}.html`, pdf: `${base}.pdf`, json: `${base}.json` };
+  return { dayDir, base, assetsDir: path.join(dayDir, base), html: `${base}.html`, json: `${base}.json` };
 }
 
 // "A b/c d.png" -> "A%20b/c%20d.png": a relative link that works from file:// and over http.
@@ -151,11 +151,11 @@ export function rowsFromPlaywright(report, browser, runDir) {
   return rows;
 }
 
-export function buildSummary({ runId, startedAt, finishedAt, baseUrl, browsers, charter, rows }) {
+export function buildSummary({ runId, startedAt, finishedAt, baseUrl, browsers, charter, rows, only = null }) {
   const counts = { passed: 0, flaky: 0, failed: 0, blocked: 0, not_tested: 0 };
   for (const r of rows) counts[r.status] = (counts[r.status] || 0) + 1;
   const have = new Set(rows.map(r => r.id));
-  const notTested = charterIds(charter).filter(id => !have.has(id));
+  const notTested = charterIds(charter).filter(id => !have.has(id) && (!only || only.includes(id)));
   counts.not_tested += notTested.length;
   return {
     run_id: runId,
@@ -168,7 +168,6 @@ export function buildSummary({ runId, startedAt, finishedAt, baseUrl, browsers, 
     results: rows,
     not_tested: notTested,
     report: 'index.html',      // set by runAll: "<SUT> - <day> <time>.html", relative to test-runs/<day>/
-    pdf: 'report.pdf',
     messages: [],
     pushed: false,
     push_message: '',
@@ -216,14 +215,15 @@ img{max-width:100%;border:1px solid var(--line)}
 .pill.blocked{background:var(--blocked)}.pill.not_tested{background:var(--grey)}
 .hint{color:var(--grey);font-size:13px}
 .msg{background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:8px 12px;margin:0 0 12px}
-@media print{tr.detail{display:table-row} .hint,.pdf{display:none} body{margin:0}}
+.print{font:inherit;padding:6px 14px;border:1px solid #1d4ed8;background:#1d4ed8;color:#fff;border-radius:6px;cursor:pointer}
+@media print{tr.detail{display:table-row} .noprint{display:none} body{margin:0} tr{break-inside:avoid} img{max-height:90vh}}
 </style></head><body>
 <h1>Test run ${esc(summary.run_id)}</h1>
 <p class="meta">${esc(summary.base_url)} · browsers: ${esc((summary.browsers || []).join(', '))} · ${esc(summary.started_at)} to ${esc(summary.finished_at)}</p>
 ${summary.story ? `<div class="story">${esc(summary.story)}</div>` : ''}
 <div class="counts">${Object.keys(label).map(k => `<div class="count"><b>${c[k] || 0}</b>${label[k]}</div>`).join('')}</div>
 ${(summary.messages || []).map(m => `<p class="msg">${esc(m)}</p>`).join('')}
-<p class="pdf">${summary.pdf ? `<a href="${esc(linkTo(summary.pdf))}">Open the PDF</a>` : esc(summary.pdf_message || '')} <span class="hint">· Click a red or amber row to see why.</span></p>
+<p class="noprint"><button class="print" type="button" onclick="window.print()">Download PDF</button> <span class="hint">Choose "Save as PDF" in the print window. Click a red or amber row to see why.</span></p>
 <table><thead><tr><th>Id</th><th>AC</th><th>Test</th><th>Browser</th><th>Result</th></tr></thead><tbody>
 ${body}
 </tbody></table>
@@ -242,9 +242,36 @@ document.querySelectorAll('tr.click').forEach(function (tr) {
 const PW_CLI = path.join(ROOT, 'node_modules', '@playwright', 'test', 'cli.js');
 
 // Run node with fixed arguments. onLine gets each stdout line. Never uses a shell.
-function runNode(args, { env, cwd = ROOT, onLine, timeoutMs = 45 * 60 * 1000 } = {}) {
+// Kill a process and everything it started (Playwright, its workers, their browsers).
+function killTree(child) {
+  if (!child || child.exitCode !== null || child.signalCode) return;
+  if (process.platform === 'win32') {
+    spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore', timeout: 15000 });
+    return;
+  }
+  const kids = new Map();
+  const out = spawnSync('ps', ['-A', '-o', 'pid=,ppid='], { encoding: 'utf8', timeout: 15000 }).stdout || '';
+  for (const line of out.trim().split('\n')) {
+    const [pid, ppid] = line.trim().split(/\s+/).map(Number);
+    if (!kids.has(ppid)) kids.set(ppid, []);
+    kids.get(ppid).push(pid);
+  }
+  const all = [];
+  const walk = pid => { all.push(pid); for (const c of kids.get(pid) || []) walk(c); };
+  walk(child.pid);
+  for (const pid of all) { try { process.kill(pid, 'SIGKILL'); } catch { /* already gone */ } }
+}
+
+// A run's stop switch: stop() kills the step that is running; the run then ends as "stopped".
+export function makeControl() {
+  return { stopped: false, child: null, stop() { this.stopped = true; killTree(this.child); } };
+}
+
+function runNode(args, { env, cwd = ROOT, onLine, control, timeoutMs = 45 * 60 * 1000 } = {}) {
   return new Promise(resolve => {
+    if (control?.stopped) return resolve({ code: -1, out: '' });
     const child = spawn(process.execPath, args, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
+    if (control) control.child = child;
     let out = '';
     let buf = '';
     const timer = setTimeout(() => child.kill(), timeoutMs);
@@ -259,7 +286,7 @@ function runNode(args, { env, cwd = ROOT, onLine, timeoutMs = 45 * 60 * 1000 } =
     });
     child.stderr.on('data', d => process.stderr.write(d));
     child.on('error', e => { clearTimeout(timer); resolve({ code: -1, out: out + String(e) }); });
-    child.on('close', code => { clearTimeout(timer); resolve({ code, out }); });
+    child.on('close', code => { clearTimeout(timer); if (control) control.child = null; resolve({ code, out }); });
   });
 }
 
@@ -288,20 +315,6 @@ export function openInChrome(url) {
   return tryRun('xdg-open', [url]);
 }
 
-// Print index.html to report.pdf with Playwright's Chromium.
-async function printPdf(htmlFile, pdfFile) {
-  const { chromium } = await import('@playwright/test');
-  const browser = await chromium.launch();
-  try {
-    const page = await browser.newPage();
-    await page.goto(pathToFileURL(htmlFile).href);
-    await page.pdf({ path: pdfFile, format: 'A4', printBackground: true,
-      margin: { top: '12mm', bottom: '12mm', left: '10mm', right: '10mm' } });
-  } finally {
-    await browser.close();
-  }
-}
-
 // The test titles a step will run (listing starts no browser). [] if unknown.
 function listTests(args, env) {
   const r = spawnSync(process.execPath, [PW_CLI, 'test', ...args, '--list', '--reporter=json'],
@@ -313,6 +326,9 @@ function listTests(args, env) {
     return titles;
   } catch { return []; }
 }
+
+// ["A1","W3"] -> a --grep that matches titles starting with those ids (after the describe titles).
+export const onlyGrep = ids => `(?:^|\\s)(${ids.join('|')}) ·`;   // names are "<id> · <AC> · …"
 
 // Is this browser installed? Checks the file only: never starts the browser.
 export async function browserMissing(b, { exists = fs.existsSync, platform = process.platform, env = process.env } = {}) {
@@ -407,7 +423,14 @@ export async function runAll(opts) {
 
   const baseEnv = { ...process.env, BASE_URL: opts.baseUrl, FORCE_COLOR: '0' };
   for (const k of ['PW_JSON_FILE', 'PW_OUTPUT_DIR', 'PW_TABS', 'PW_CDP_CHROME']) delete baseEnv[k];
-  const common = ['--workers=1', '--retries=3', '--pass-with-no-tests', ...(opts.grep ? ['--grep', String(opts.grep)] : [])];
+  // only: run just these ids (["A1","W3"]); a step with none of them is skipped (no browser opens).
+  const only = Array.isArray(opts.only) && opts.only.length ? opts.only : null;
+  const grep = only ? onlyGrep(only) : opts.grep;
+  const wantApi = !only || only.some(id => id[0] === 'A');
+  const wantBrowsers = !only || only.some(id => id[0] === 'W' || id[0] === 'I');
+  const control = opts.control || makeControl();
+  const common = ['--workers=1', '--retries=3', '--pass-with-no-tests', ...(grep ? ['--grep', String(grep)] : [])];
+  const finished = new Set();   // steps that ran to the end
   const rows = [];
   const messages = [];
 
@@ -419,8 +442,9 @@ export async function runAll(opts) {
 
   // Progress total (listing starts no browser).
   const browserArgs = b => ['tests/web', 'tests/integration', `--project=${b}`, ...common];
-  let total = listTests(['tests/api', '--project=api', ...common], baseEnv).length;
-  for (const b of browsers) total += listTests(browserArgs(b), baseEnv).length;
+  const apiArgs = ['tests/api', '--project=api', ...common];
+  let total = wantApi ? listTests(apiArgs, baseEnv).length : 0;
+  if (wantBrowsers) for (const b of browsers) total += listTests(browserArgs(b), baseEnv).length;
   tell({ total });
 
   const countLine = line => {
@@ -430,18 +454,20 @@ export async function runAll(opts) {
   };
 
   // 2. API tests, once.
-  tell({ step: 'api', message: 'API tests' });
-  {
+  //    The api project has no browser: a test there that asks for one fails (playwright.config.ts).
+  if (wantApi && !control.stopped) {
+    tell({ step: 'api', message: 'API tests' });
     const jsonFile = path.join(rawDir, 'api.json');
     const env = { ...baseEnv, PW_JSON_FILE: jsonFile, PW_OUTPUT_DIR: path.join(P.assetsDir, 'artifacts', 'api') };
-    await runNode([PW_CLI, 'test', 'tests/api', '--project=api', ...common], { env, onLine: countLine });
-    rows.push(...readPwRows(jsonFile, 'api', P.dayDir));
+    await runNode([PW_CLI, 'test', ...apiArgs], { env, onLine: countLine, control });
+    if (!control.stopped) { rows.push(...readPwRows(jsonFile, 'api', P.dayDir)); finished.add('api'); }
   }
 
   // 3. Web + integration tests in each browser, one browser at a time.
   //    Headed: one window per browser, every test a new tab (helpers/web.ts, PW_TABS=1).
   if (opts.headed) await closeHeldBrowsers();      // last run's windows
-  for (const b of browsers) {
+  for (const b of wantBrowsers ? browsers : []) {
+    if (control.stopped) break;
     const name = b === 'chrome' ? 'Chrome' : 'Firefox';
     tell({ step: b, message: `Web and integration tests in ${name} (browser ${browsers.indexOf(b) + 1} of ${browsers.length})` });
     const missing = await browserMissing(b);
@@ -450,6 +476,7 @@ export async function runAll(opts) {
       const titles = listTests(browserArgs(b), baseEnv);
       rows.push(...titles.map(title => ({ id: idOf(title), title, browser: b, status: 'not_tested', error: missing, screenshot: null })));
       tell({ done: Math.min(progress.done + titles.length, progress.total || Infinity), message: missing });
+      finished.add(b);
       continue;
     }
     const jsonFile = path.join(rawDir, `${b}.json`);
@@ -463,37 +490,41 @@ export async function runAll(opts) {
     }
     const args = [PW_CLI, 'test', ...browserArgs(b)];
     if (opts.headed) args.push('--headed');
-    await runNode(args, { env, onLine: countLine });
-    rows.push(...readPwRows(jsonFile, b, P.dayDir));
+    await runNode(args, { env, onLine: countLine, control });
+    if (!control.stopped) { rows.push(...readPwRows(jsonFile, b, P.dayDir)); finished.add(b); }
   }
 
-  // 4. The report: <SUT> - <day> <time>.html, .pdf and .json in test-runs/<day>/, and the runs list.
+  // 4. The report: <SUT> - <day> <time>.html and .json in test-runs/<day>/, and the runs list.
+  // Stopped: the steps that didn't finish count as Not tested.
+  if (control.stopped) {
+    const steps = [...(wantApi ? [['api', apiArgs]] : []), ...(wantBrowsers ? browsers.map(b => [b, browserArgs(b)]) : [])];
+    for (const [step, args] of steps.filter(([step]) => !finished.has(step))) {
+      rows.push(...listTests(args, baseEnv).map(title => ({ id: idOf(title), title, browser: step, status: 'not_tested', error: 'Stopped by you', screenshot: null })));
+    }
+    messages.push('Stopped by you');
+  }
   tell({ step: 'report', message: 'Writing the report' });
   const summary = buildSummary({ runId, startedAt, finishedAt: new Date().toISOString(), baseUrl: opts.baseUrl,
-    browsers, charter: opts.charter, rows });
-  Object.assign(summary, { report: P.html, pdf: P.pdf, folder: `test-runs/${runDay(runId)}`, messages });
+    browsers, charter: opts.charter, rows, only });
+  Object.assign(summary, { report: P.html, folder: `test-runs/${runDay(runId)}`, messages });
+  if (only) summary.only = only;
+  if (control.stopped) summary.stopped = true;
   const htmlFile = path.join(P.dayDir, P.html);
   const writeOut = () => fs.writeFileSync(path.join(P.dayDir, P.json), JSON.stringify(summary, null, 2));
   writeOut();
   fs.writeFileSync(htmlFile, reportHtml(summary));
-  try {
-    await printPdf(htmlFile, path.join(P.dayDir, P.pdf));
-  } catch (e) {
-    summary.pdf = null;
-    summary.pdf_message = `PDF not made: ${stripAnsi(e.message).split('\n')[0]}. Fix: npx playwright install chromium`;
-    fs.writeFileSync(htmlFile, reportHtml(summary));
-    writeOut();
-  }
   writeRunsIndex(root);
 
   // 5. Open the report in Chrome.
-  if (opts.open !== false) {
+  if (opts.open !== false && !control.stopped) {
     openInChrome(opts.reportUrl ? opts.reportUrl(runId, P.html) : pathToFileURL(htmlFile).href);
   }
 
   // 6. Commit and push, so CI (and GitHub Pages) run too. A failed push doesn't fail the run.
   tell({ step: 'push', message: 'Saving to GitHub' });
-  if (opts.push === false) {
+  if (control.stopped) {
+    summary.push_message = 'Not pushed: stopped by you.';
+  } else if (opts.push === false) {
     summary.push_message = 'Not pushed: NO_PUSH=1 is set.';
   } else {
     git(['add', 'charters', 'tests', 'test-runs'], root);
@@ -509,7 +540,8 @@ export async function runAll(opts) {
   }
   writeOut();   // keeps the push result locally (it goes up with the next run)
 
-  tell({ state: 'done', step: 'push', done: progress.total || rows.length, message: summary.push_message, summary });
+  if (control.stopped) tell({ state: 'stopped', message: 'Stopped by you', summary });
+  else tell({ state: 'done', step: 'push', done: progress.total || rows.length, message: summary.push_message, summary });
   return summary;
 }
 

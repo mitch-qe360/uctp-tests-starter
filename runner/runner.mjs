@@ -9,8 +9,9 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { ROOT, ALL_BROWSERS, STAGING_HOST, loadEnvironment, newRunId, safeName, repoInfo, runAll, closeHeldBrowsers, runDay, linkTo } from './lib.mjs';
+import { ROOT, ALL_BROWSERS, STAGING_HOST, loadEnvironment, newRunId, safeName, repoInfo, runAll, closeHeldBrowsers, runDay, linkTo, makeControl } from './lib.mjs';
 
 export const PORT = 7357;
 export const DEFAULT_ORIGINS = [
@@ -69,9 +70,10 @@ export function createRunner(opts = {}) {
   const env = loadEnvironment(root);
   const runs = new Map();
   let busy = false;
+  let current = null;   // the job that is running
 
   const start = opts.start || (job => runAll({
-    ...job, headed: process.env.HEADED !== '0', push: process.env.NO_PUSH !== '1',
+    ...job, headed: job.headed !== false && process.env.HEADED !== '0', push: process.env.NO_PUSH !== '1',
     reportUrl: (id, file) => `http://127.0.0.1:${server.address().port}/report/${id}/${linkTo(file)}`,
     onProgress: p => runs.set(job.runId, { ...p }),
   }));
@@ -189,16 +191,32 @@ export function createRunner(opts = {}) {
           return send(res, 400, { error: 'browsers must be a list of "chrome" and/or "firefox".' }, allowed);
         }
         const runId = newRunId(new Date(), root);
+        let only = null;
+        if (body.only !== undefined) {
+          const ids = Array.isArray(body.only) ? [...new Set(body.only)] : null;
+          if (!ids || !ids.length || ids.length > 50 || ids.some(id => typeof id !== 'string' || !/^[AWI]\d{1,3}$/.test(id))) {
+            return send(res, 400, { error: 'only must be a list of 1 to 50 test ids like "A1", "W3", "I1".' }, allowed);
+          }
+          only = ids;
+        }
+        if (body.headed !== undefined && typeof body.headed !== 'boolean') return send(res, 400, { error: 'headed must be true or false.' }, allowed);
         const job = { runId, charter: body.charter && typeof body.charter === 'object' ? body.charter : null,
-          name: safeName(body.name), baseUrl: base.origin, browsers };
+          name: safeName(body.name), baseUrl: base.origin, browsers, only, headed: body.headed !== false, control: makeControl() };
         busy = true;
+        current = job;
         runs.set(runId, { state: 'running', step: 'saving', done: 0, total: 0, message: 'Starting' });
         Promise.resolve()
           .then(() => start(job))
-          .then(summary => runs.set(runId, { ...(runs.get(runId) || {}), state: 'done', summary }))
+          .then(summary => runs.set(runId, { ...(runs.get(runId) || {}), state: summary?.stopped ? 'stopped' : 'done', ...(summary?.stopped ? { message: 'Stopped by you' } : {}), summary }))
           .catch(e => runs.set(runId, { ...(runs.get(runId) || {}), state: 'error', message: String(e?.message || e) }))
-          .finally(() => { busy = false; });
+          .finally(() => { busy = false; current = null; });
         return send(res, 200, { run_id: runId }, allowed);
+      }
+
+      if (req.method === 'POST' && p === '/stop') {
+        if (!busy || !current) return send(res, 409, { error: 'Nothing is running.' }, allowed);
+        current.control.stop();
+        return send(res, 200, { stopping: true, run_id: current.runId }, allowed);
       }
 
       const m = /^\/run\/([^/]+)$/.exec(p);
@@ -229,6 +247,42 @@ export function createRunner(opts = {}) {
   };
 }
 
+// Port 7357 is busy: is it our runner (maybe left running after its terminal tab closed)?
+// status = the /status answer (null if not our runner), paired = it accepted this folder's code.
+export function busyPortMessage({ status, paired, code, pid, port = PORT }) {
+  const stop = pid
+    ? `kill ${pid}${process.platform === 'win32' ? ` (Windows: taskkill /PID ${pid} /F)` : ''}`
+    : (process.platform === 'win32'
+      ? `find its PID with: netstat -ano | findstr :${port}, then: taskkill /PID <pid> /F`
+      : `find its PID with: lsof -nP -iTCP:${port} -sTCP:LISTEN, then: kill <pid>`);
+  if (!status) return `Another program uses port ${port}, so the runner can't start. Close that program, or stop it with: ${stop}`;
+  const folder = status.repo || '?';
+  const use = paired ? `Use it: pairing code ${code}.` : `It runs from another folder (${folder}): use the code in that folder's .runner-code file.`;
+  return `Your runner is already running (folder: ${folder}, started earlier). ${use}\nTo restart it, stop it with: ${stop}`;
+}
+
+async function explainBusyPort() {
+  let status = null;
+  let paired = false;
+  const code = (() => { try { return fs.readFileSync(path.join(ROOT, '.runner-code'), 'utf8').trim(); } catch { return ''; } })();
+  try {
+    const res = await fetch(`http://127.0.0.1:${PORT}/status`, { headers: code ? { 'X-Runner-Code': code } : {}, signal: AbortSignal.timeout(3000) });
+    const body = await res.json();
+    if (body && body.ok === true && body.version === '1' && 'paired' in body) { status = body; paired = body.paired === true; }
+  } catch { /* not our runner */ }
+  let pid = '';
+  try {
+    if (process.platform === 'win32') {
+      const out = spawnSync('netstat', ['-ano'], { encoding: 'utf8', timeout: 5000 }).stdout || '';
+      const line = out.split('\n').find(l => l.includes(`:${PORT} `) && /LISTENING/.test(l));
+      pid = line ? line.trim().split(/\s+/).pop() : '';
+    } else {
+      pid = (spawnSync('lsof', ['-nP', `-iTCP:${PORT}`, '-sTCP:LISTEN', '-t'], { encoding: 'utf8', timeout: 5000 }).stdout || '').trim().split('\n')[0];
+    }
+  } catch { /* no pid: the message says how to find it */ }
+  return busyPortMessage({ status, paired, code, pid: /^\d+$/.test(pid) ? pid : '' });
+}
+
 // npm run runner
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const runner = createRunner();
@@ -250,9 +304,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     if (process.env.HEADED === '0') console.log('  HEADED=0: browsers run hidden.');
     else console.log('  Each browser opens one window; every test is a new tab. Chrome stays open after a run (the next RUN closes it).');
     console.log('');
-  }).catch(e => {
-    if (e.code === 'EADDRINUSE') console.error(`Port ${PORT} is busy: the runner is probably already running in another window. Close that one first.`);
-    else console.error(e.message);
+  }).catch(async e => {
+    console.error(e.code === 'EADDRINUSE' ? await explainBusyPort() : e.message);
     process.exit(1);
   });
 }
