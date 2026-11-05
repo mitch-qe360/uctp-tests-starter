@@ -5,7 +5,7 @@ name: Test reports on GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [main, one-window-tabs]   # temporary: publish the new sample before merge
     paths: ['test-runs/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
