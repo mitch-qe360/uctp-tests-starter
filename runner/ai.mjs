@@ -2,10 +2,10 @@
 // The key comes with each request from the learner's browser and is never written to disk or logged.
 // Only these four hosts can be reached, so the runner can't be used to call anything else.
 export const AI_PROVIDERS = {
-  gemini: { label: 'Gemini', model: 'gemini-2.5-flash' },
-  anthropic: { label: 'Anthropic (Claude)', model: 'claude-sonnet-5-5' },
-  openai: { label: 'ChatGPT (OpenAI)', model: 'gpt-5' },
-  kimi: { label: 'Kimi (Moonshot)', model: 'kimi-k2-turbo-preview' },
+  gemini: { label: 'Gemini API', model: 'gemini-2.5-flash' },
+  anthropic: { label: 'Claude API', model: 'claude-sonnet-5-5' },
+  openai: { label: 'ChatGPT API', model: 'gpt-5' },
+  kimi: { label: 'Kimi API', model: 'kimi-k2-turbo-preview' },
 };
 
 function request(provider, { model, key, system, user, json }) {
