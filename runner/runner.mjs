@@ -11,7 +11,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { ROOT, ALL_BROWSERS, STAGING_HOST, loadEnvironment, newRunId, safeName, repoInfo, runAll, closeHeldBrowsers, runDay, linkTo, makeControl } from './lib.mjs';
+import { ROOT, ALL_BROWSERS, STAGING_HOST, loadEnvironment, newRunId, safeName, repoInfo, runAll, closeHeldBrowsers, runDay, findRunDir, linkTo, makeControl } from './lib.mjs';
 
 export const PORT = 7357;
 export const DEFAULT_ORIGINS = [
@@ -29,12 +29,12 @@ const RUN_ID_RE = /^\d{8}-\d{6}(-\d+)?$/;
 const list = v => String(v || '').split(',').map(s => s.trim()).filter(Boolean);
 
 // The 6-digit pairing code: made on the first start, kept in .runner-code (git-ignored).
-// A finished run's summary on disk: test-runs/<day>/*.json with this run_id.
+// A finished run's summary on disk: the .json in that run's folder.
 function findSummary(root, id) {
-  const day = path.join(root, 'test-runs', runDay(id));
-  if (!fs.existsSync(day)) return null;
-  for (const f of fs.readdirSync(day).filter(f => f.endsWith('.json'))) {
-    try { const s = JSON.parse(fs.readFileSync(path.join(day, f), 'utf8')); if (s.run_id === id) return s; } catch { /* skip */ }
+  const dir = findRunDir(root, id);
+  if (!dir) return null;
+  for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.json'))) {
+    try { const s = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); if (s.run_id === id) return s; } catch { /* skip */ }
   }
   return null;
 }
@@ -108,9 +108,9 @@ export function createRunner(opts = {}) {
     if (!RUN_ID_RE.test(id || '') || !rest.length || rest.some(p => !p || p === '.' || p === '..' || /[\\/\0]/.test(p))) {
       return send(res, 400, { error: 'Bad report path.' }, origin);
     }
-    const runDir = path.join(root, 'test-runs', runDay(id));     // the run's day folder
-    const file = path.join(runDir, ...rest);
-    if (!file.startsWith(runDir + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
+    const runDir = findRunDir(root, id);                         // the run's own folder
+    const file = runDir ? path.join(runDir, ...rest) : '';
+    if (!runDir || !file.startsWith(runDir + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
       return send(res, 404, { error: 'Not found.' }, origin);
     }
     const headers = { 'Content-Type': TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-store', Vary: 'Origin' };
