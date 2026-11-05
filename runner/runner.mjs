@@ -246,7 +246,8 @@ export function createRunner(opts = {}) {
       if (req.method === 'POST' && p === '/ai') {
         const body = await readJson(req);
         const r = await (opts.askAi || askAi)(body);
-        return send(res, r.ok ? 200 : (r.status >= 400 && r.status < 600 ? r.status : 502), r.ok ? { text: r.text } : { error: r.error }, allowed);
+        // A provider's own error comes back as 502 with its status, so a 401 from the provider isn't read as a wrong pairing code.
+        return send(res, r.ok ? 200 : 502, r.ok ? { text: r.text } : { error: r.error, provider_status: r.status }, allowed);
       }
 
       if (req.method === 'POST' && p === '/stop') {
