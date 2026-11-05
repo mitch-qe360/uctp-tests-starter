@@ -79,7 +79,7 @@ test('/status has the contract shape, and paired says if the code is right', () 
   assert.equal(s.version, '1');
   assert.equal(s.paired, false);
   assert.equal(s.repo, path.basename(root));
-  assert.deepEqual(s.browsers, ['chrome', 'firefox']);
+  assert.deepEqual(s.browsers, ['chrome', 'firefox', 'edge', 'webkit']);
   assert.equal(s.busy, false);
   s = await (await call('GET', '/status', { headers: good })).json();
   assert.equal(s.paired, true);
@@ -120,7 +120,7 @@ test('/run checks base_url and browsers, sanitizes name, and answers 409 while b
     const bad = [
       { base_url: 'http://city-treasurer-staging.aiqe.pro', browsers: ['chrome'] },
       { base_url: 'https://www.google.com', browsers: ['chrome'] },
-      { base_url: 'https://city-treasurer-staging.aiqe.pro', browsers: ['webkit'] },
+      { base_url: 'https://city-treasurer-staging.aiqe.pro', browsers: ['safari'] },
       { base_url: 'https://city-treasurer-staging.aiqe.pro', browsers: [] },
     ];
     for (const body of bad) assert.equal((await call('POST', '/run', { headers: good, body })).status, 400, JSON.stringify(body));
@@ -314,6 +314,9 @@ test('browser check looks for the file only, and names the fix', async () => {
   assert.equal(await browserMissing('chrome', { exists: none, platform: 'darwin', env: {} }), "Google Chrome isn't installed: run npx playwright install chrome");
   assert.equal(await browserMissing('chrome', { exists: p => p === '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', platform: 'darwin', env: {} }), null);
   assert.equal(await browserMissing('firefox', { exists: () => true }), null);
+  assert.match(await browserMissing('webkit', { exists: none }), /WebKit\) isn't installed: run npx playwright install webkit/);
+  assert.match(await browserMissing('edge', { exists: none, platform: 'darwin', env: {} }), /Microsoft Edge isn't installed/);
+  assert.equal(await browserMissing('edge', { exists: p => p.includes('Microsoft Edge.app'), platform: 'darwin', env: {} }), null);
 });
 
 test('a browser that is not installed: its tests count as not tested, with the message', () => {

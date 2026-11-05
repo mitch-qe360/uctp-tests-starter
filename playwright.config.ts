@@ -52,5 +52,15 @@ export default defineConfig({
       testMatch: /(web|integration)[\\/].*\.spec\.(ts|js|mjs)$/,
       use: { ...devices['Desktop Firefox'] },
     },
+    {
+      name: 'edge',
+      testMatch: /(web|integration)[\\/].*\.spec\.(ts|js|mjs)$/,
+      use: { ...devices['Desktop Edge'], channel: 'msedge' },
+    },
+    {
+      name: 'webkit',   // Safari's engine
+      testMatch: /(web|integration)[\\/].*\.spec\.(ts|js|mjs)$/,
+      use: { ...devices['Desktop Safari'] },
+    },
   ],
 });
