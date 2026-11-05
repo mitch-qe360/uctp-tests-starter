@@ -30,7 +30,7 @@
     "preserveOutput": "always",
     "projects": [
       {
-        "outputDir": "/Users/michellechua/uctp-wt/test-runs/2026-11-05/Card 01 · TRN-01 · Register a taxpayer - 2026-11-05 133724/artifacts/chrome",
+        "outputDir": "/Users/michellechua/uctp-wt/test-runs/2026-11-05/Card 01 · TRN-01 · Register a taxpayer - 2026-11-05 143736/artifacts/chrome",
         "repeatEach": 1,
         "retries": 3,
         "metadata": {
@@ -46,7 +46,7 @@
         "timeout": 30000
       },
       {
-        "outputDir": "/Users/michellechua/uctp-wt/test-runs/2026-11-05/Card 01 · TRN-01 · Register a taxpayer - 2026-11-05 133724/artifacts/chrome",
+        "outputDir": "/Users/michellechua/uctp-wt/test-runs/2026-11-05/Card 01 · TRN-01 · Register a taxpayer - 2026-11-05 143736/artifacts/chrome",
         "repeatEach": 1,
         "retries": 3,
         "metadata": {
@@ -62,7 +62,7 @@
         "timeout": 30000
       },
       {
-        "outputDir": "/Users/michellechua/uctp-wt/test-runs/2026-11-05/Card 01 · TRN-01 · Register a taxpayer - 2026-11-05 133724/artifacts/chrome",
+        "outputDir": "/Users/michellechua/uctp-wt/test-runs/2026-11-05/Card 01 · TRN-01 · Register a taxpayer - 2026-11-05 143736/artifacts/chrome",
         "repeatEach": 1,
         "retries": 3,
         "metadata": {
@@ -87,7 +87,7 @@
       [
         "json",
         {
-          "outputFile": "/Users/michellechua/uctp-wt/test-runs/2026-11-05/Card 01 · TRN-01 · Register a taxpayer - 2026-11-05 133724/raw/chrome.json"
+          "outputFile": "/Users/michellechua/uctp-wt/test-runs/2026-11-05/Card 01 · TRN-01 · Register a taxpayer - 2026-11-05 143736/raw/chrome.json"
         }
       ]
     ],
@@ -133,12 +133,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 2046,
+                      "duration": 2992,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-05T05:37:27.273Z",
+                      "startTime": "2026-11-05T06:37:39.444Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -184,12 +184,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1068,
+                      "duration": 1021,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-11-05T05:37:29.853Z",
+                      "startTime": "2026-11-05T06:37:43.030Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -209,8 +209,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-11-05T05:37:27.024Z",
-    "duration": 3979.4779999999996,
+    "startTime": "2026-11-05T06:37:39.171Z",
+    "duration": 4964.937,
     "expected": 2,
     "skipped": 0,
     "unexpected": 0,

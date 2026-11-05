@@ -34,14 +34,13 @@ if (remote.ok) {
     'run "git push" once in this folder and sign in to GitHub when asked. The repo must be YOUR copy (github.com/<your-username>/uctp-tests), not the teacher\'s.');
 }
 
-// 5. Playwright browsers: Chrome and Firefox for the tests, Chromium for the PDF report
+// 5. Playwright browsers: Chrome and Firefox for the tests
 let pw = null;
 try { pw = await import('@playwright/test'); } catch { fail('Playwright is not installed', 'npm ci'); }
 if (pw) {
   for (const [label, type, launch, fix] of [
     ['Google Chrome', pw.chromium, { channel: 'chrome' }, 'npx playwright install chrome (Mac and Windows may ask for your admin password)'],
     ['Firefox', pw.firefox, {}, 'npx playwright install firefox'],
-    ['Chromium (prints the PDF report)', pw.chromium, {}, 'npx playwright install chromium'],
   ]) {
     try {
       const b = await type.launch({ ...launch, timeout: 60000 });

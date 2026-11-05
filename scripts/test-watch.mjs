@@ -1,6 +1,6 @@
 // npm run test:watch -- the same run as Charter360's RUN button, from the terminal (no Charter360).
 // API tests once, then web + integration tests in each browser from config/environment.js (headed),
-// then the report in test-runs/<YYYY-MM-DD>/ (<SUT> - <date time>.html, .pdf, .json), open it, commit and push.
+// then the report in test-runs/<YYYY-MM-DD>/ (<SUT> - <date time>.html and .json), open it, commit and push.
 //
 //   npm run test:watch                                  newest charter in charters/
 //   npm run test:watch -- charters/card-01-charter.json a chosen charter (for "Not tested")
