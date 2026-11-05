@@ -11,7 +11,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { ROOT, ALL_BROWSERS, STAGING_HOST, loadEnvironment, newRunId, safeName, repoInfo, runAll, closeHeldBrowsers, runDay, linkTo } from './lib.mjs';
+import { ROOT, ALL_BROWSERS, STAGING_HOST, loadEnvironment, newRunId, safeName, repoInfo, runAll, closeHeldBrowsers, runDay, linkTo, makeControl } from './lib.mjs';
 
 export const PORT = 7357;
 export const DEFAULT_ORIGINS = [
@@ -70,9 +70,10 @@ export function createRunner(opts = {}) {
   const env = loadEnvironment(root);
   const runs = new Map();
   let busy = false;
+  let current = null;   // the job that is running
 
   const start = opts.start || (job => runAll({
-    ...job, headed: process.env.HEADED !== '0', push: process.env.NO_PUSH !== '1',
+    ...job, headed: job.headed !== false && process.env.HEADED !== '0', push: process.env.NO_PUSH !== '1',
     reportUrl: (id, file) => `http://127.0.0.1:${server.address().port}/report/${id}/${linkTo(file)}`,
     onProgress: p => runs.set(job.runId, { ...p }),
   }));
@@ -190,16 +191,32 @@ export function createRunner(opts = {}) {
           return send(res, 400, { error: 'browsers must be a list of "chrome" and/or "firefox".' }, allowed);
         }
         const runId = newRunId(new Date(), root);
+        let only = null;
+        if (body.only !== undefined) {
+          const ids = Array.isArray(body.only) ? [...new Set(body.only)] : null;
+          if (!ids || !ids.length || ids.length > 50 || ids.some(id => typeof id !== 'string' || !/^[AWI]\d{1,3}$/.test(id))) {
+            return send(res, 400, { error: 'only must be a list of 1 to 50 test ids like "A1", "W3", "I1".' }, allowed);
+          }
+          only = ids;
+        }
+        if (body.headed !== undefined && typeof body.headed !== 'boolean') return send(res, 400, { error: 'headed must be true or false.' }, allowed);
         const job = { runId, charter: body.charter && typeof body.charter === 'object' ? body.charter : null,
-          name: safeName(body.name), baseUrl: base.origin, browsers };
+          name: safeName(body.name), baseUrl: base.origin, browsers, only, headed: body.headed !== false, control: makeControl() };
         busy = true;
+        current = job;
         runs.set(runId, { state: 'running', step: 'saving', done: 0, total: 0, message: 'Starting' });
         Promise.resolve()
           .then(() => start(job))
-          .then(summary => runs.set(runId, { ...(runs.get(runId) || {}), state: 'done', summary }))
+          .then(summary => runs.set(runId, { ...(runs.get(runId) || {}), state: summary?.stopped ? 'stopped' : 'done', ...(summary?.stopped ? { message: 'Stopped by you' } : {}), summary }))
           .catch(e => runs.set(runId, { ...(runs.get(runId) || {}), state: 'error', message: String(e?.message || e) }))
-          .finally(() => { busy = false; });
+          .finally(() => { busy = false; current = null; });
         return send(res, 200, { run_id: runId }, allowed);
+      }
+
+      if (req.method === 'POST' && p === '/stop') {
+        if (!busy || !current) return send(res, 409, { error: 'Nothing is running.' }, allowed);
+        current.control.stop();
+        return send(res, 200, { stopping: true, run_id: current.runId }, allowed);
       }
 
       const m = /^\/run\/([^/]+)$/.exec(p);
