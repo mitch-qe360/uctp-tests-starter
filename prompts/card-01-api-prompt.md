@@ -4,7 +4,7 @@
 2. Under **RULES:** paste all of `prompts/rules-api.md` (open it › **Copy raw file**).
 3. Under **CHARTER:** paste your Card 01 charter JSON. Press **Enter**.
 
-The AI answers with 3 files: tests/api/card-01-positive.test.js, tests/api/card-01-negative.test.js, tests/api/card-01-security.test.js.
+The AI answers with 1 file: tests/api/trn-01.spec.ts.
 
 ````
 Write API tests for my user story.

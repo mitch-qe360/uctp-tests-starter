@@ -4,7 +4,7 @@
 2. Under **RULES:** paste all of `prompts/rules-web.md` (open it › **Copy raw file**).
 3. Under **CHARTER:** paste your Card 01 charter JSON. Press **Enter**.
 
-The AI answers with 1 file: tests/web/card-01.web.spec.ts.
+The AI answers with 1 file: tests/web/trn-01.spec.ts.
 
 ````
 Write web tests for my user story.

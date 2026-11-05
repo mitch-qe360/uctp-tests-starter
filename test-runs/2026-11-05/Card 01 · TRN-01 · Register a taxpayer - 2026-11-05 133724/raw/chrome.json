@@ -1,0 +1,219 @@
+{
+  "config": {
+    "argv": [
+      "/Users/michellechua/.local/node/node-v22.23.4-darwin-arm64/bin/node",
+      "/Users/michellechua/uctp-wt/node_modules/@playwright/test/cli.js",
+      "test",
+      "tests/web",
+      "tests/integration",
+      "--project=chrome",
+      "--workers=1",
+      "--retries=3",
+      "--pass-with-no-tests",
+      "--grep",
+      "(A1|W1|I1) ·"
+    ],
+    "configFile": "/Users/michellechua/uctp-wt/playwright.config.ts",
+    "rootDir": "/Users/michellechua/uctp-wt/tests",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/michellechua/uctp-wt/test-runs/2026-11-05/Card 01 · TRN-01 · Register a taxpayer - 2026-11-05 133724/artifacts/chrome",
+        "repeatEach": 1,
+        "retries": 3,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "api",
+        "name": "api",
+        "testDir": "/Users/michellechua/uctp-wt/tests/api",
+        "testIgnore": [],
+        "testMatch": [
+          "/.*\\.spec\\.(ts|js|mjs)$/"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/Users/michellechua/uctp-wt/test-runs/2026-11-05/Card 01 · TRN-01 · Register a taxpayer - 2026-11-05 133724/artifacts/chrome",
+        "repeatEach": 1,
+        "retries": 3,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chrome",
+        "name": "chrome",
+        "testDir": "/Users/michellechua/uctp-wt/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "/(web|integration)[\\\\/].*\\.spec\\.(ts|js|mjs)$/"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/Users/michellechua/uctp-wt/test-runs/2026-11-05/Card 01 · TRN-01 · Register a taxpayer - 2026-11-05 133724/artifacts/chrome",
+        "repeatEach": 1,
+        "retries": 3,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "firefox",
+        "name": "firefox",
+        "testDir": "/Users/michellechua/uctp-wt/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "/(web|integration)[\\\\/].*\\.spec\\.(ts|js|mjs)$/"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "/Users/michellechua/uctp-wt/test-runs/2026-11-05/Card 01 · TRN-01 · Register a taxpayer - 2026-11-05 133724/raw/chrome.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.63.0",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "integration/trn-01.spec.ts",
+      "file": "integration/trn-01.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "TRN-01 Register a taxpayer (integration: API and screen)",
+          "file": "integration/trn-01.spec.ts",
+          "line": 9,
+          "column": 6,
+          "specs": [
+            {
+              "title": "I1 · AC-1, AC-2 · create \"Ana Dela Cruz\" with the API, see it on the screen",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chrome",
+                  "projectName": "chrome",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2046,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-05T05:37:27.273Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "06816b618c52f28575de-1d2cfff2f693e0c99c11",
+              "file": "integration/trn-01.spec.ts",
+              "line": 20,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "web/trn-01.spec.ts",
+      "file": "web/trn-01.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "TRN-01 Register a taxpayer (web)",
+          "file": "web/trn-01.spec.ts",
+          "line": 10,
+          "column": 6,
+          "specs": [
+            {
+              "title": "W1 · AC-1 · open the Create a taxpayer form: all boxes empty, no result box",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chrome",
+                  "projectName": "chrome",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1068,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-05T05:37:29.853Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "55ceaf0a9589a0d92f22-7f9b157b1316c3fa57ba",
+              "file": "web/trn-01.spec.ts",
+              "line": 17,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-11-05T05:37:27.024Z",
+    "duration": 3979.4779999999996,
+    "expected": 2,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

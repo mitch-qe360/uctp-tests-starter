@@ -17,7 +17,7 @@ You review the AI's code the way a teammate would. The AI is fast, not careful: 
 ## 3 · Missing tests
 - [ ] Every AC has at least one test. Every "refused" AC has a − test.
 - [ ] Limits are tested on both sides: the last value that works and the first that doesn't (2 and 1 letters, 100 and 101).
-- [ ] Compare with the team's files (`taxpayer-*`): a test they have and you don't?
+- [ ] Compare with the team's files (`trn-01.spec.ts` in tests/api, tests/web, tests/integration): a test they have and you don't?
 
 ## 4 · The run
 - [ ] CI ran your files: the Actions log lists them.

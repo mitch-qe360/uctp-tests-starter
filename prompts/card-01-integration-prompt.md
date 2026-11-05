@@ -4,7 +4,7 @@
 2. Under **RULES:** paste all of `prompts/rules-integration.md` (open it › **Copy raw file**).
 3. Under **CHARTER:** paste your Card 01 charter JSON. Press **Enter**.
 
-The AI answers with 1 file: tests/integration/card-01.integration.spec.ts.
+The AI answers with 1 file: tests/integration/trn-01.spec.ts.
 
 ````
 Write integration tests for my user story.

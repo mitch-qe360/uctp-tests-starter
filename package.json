@@ -3,7 +3,7 @@
   "private": true,
   "description": "My UCTP test project: API, web and integration tests for the same user stories, run by GitHub Actions on every change",
   "scripts": {
-    "test:api": "node scripts/run-api-tests.js",
+    "test:api": "playwright test tests/api --project=api",
     "test:web": "playwright test tests/web --project=chrome",
     "test:integration": "playwright test tests/integration --project=chrome",
     "test:runner": "node --test runner/runner.test.mjs",
