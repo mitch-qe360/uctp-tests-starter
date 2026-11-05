@@ -7,7 +7,7 @@
 //   HEADED=0 hides the browsers. NO_PUSH=1 skips the commit and push.
 import fs from 'node:fs';
 import path from 'node:path';
-import { ROOT, loadEnvironment, runAll } from '../runner/lib.mjs';
+import { ROOT, loadEnvironment, runAll, closeHeldBrowsers, heldBrowserCount } from '../runner/lib.mjs';
 
 const env = loadEnvironment();
 
@@ -44,3 +44,11 @@ const c = summary.counts;
 console.log(`\nTest run ${summary.run_id}: ${c.passed} passed, ${c.flaky} flaky, ${c.failed} failed, ${c.blocked} blocked, ${c.not_tested} not tested`);
 console.log(`Report: ${path.join('test-runs', summary.run_id, 'index.html')}`);
 console.log(summary.push_message);
+
+// Headed: the Chrome window (one tab per test) stays open until Ctrl+C.
+if (heldBrowserCount()) {
+  console.log('\nBrowsers stay open so you can look at each tab. Press Ctrl+C to close them.');
+  await new Promise(resolve => { process.once('SIGINT', resolve); process.once('SIGTERM', resolve); });
+  await closeHeldBrowsers();
+}
+process.exit(0);

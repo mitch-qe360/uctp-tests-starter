@@ -4,6 +4,8 @@
 //
 // Only fixed commands run here (node + Playwright's CLI, git), always as argument arrays, never a shell.
 import fs from 'node:fs';
+import os from 'node:os';
+import net from 'node:net';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -311,6 +313,34 @@ function legacyApiFiles(root = ROOT) {
   return fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith('.test.js')).sort() : [];
 }
 
+// ---------- headed runs: one Chrome window that stays open, every test a new tab ----------
+// The window belongs to this process (the runner or test:watch). Tests reach it through Chrome's
+// DevTools port (PW_CDP_CHROME), open their own tab, and leave it open. The next run closes it.
+const held = [];
+export async function closeHeldBrowsers() {
+  for (const h of held.splice(0)) await h.close().catch(() => {});
+}
+export const heldBrowserCount = () => held.length;
+
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const srv = net.createServer();
+    srv.once('error', reject);
+    srv.listen(0, '127.0.0.1', () => { const { port } = srv.address(); srv.close(() => resolve(port)); });
+  });
+}
+
+async function openChromeWindow() {
+  const { chromium } = await import('@playwright/test');
+  const port = await freePort();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'uctp-chrome-'));
+  const context = await chromium.launchPersistentContext(dir, {
+    channel: 'chrome', headless: false, viewport: null, args: [`--remote-debugging-port=${port}`],
+  });
+  held.push({ close: async () => { await context.close(); fs.rmSync(dir, { recursive: true, force: true }); } });
+  return `http://127.0.0.1:${port}`;
+}
+
 // ---------- the whole run ----------
 // opts: { charter, name, baseUrl, browsers, headed, push, open, reportUrl(runId), onProgress(p) }
 export async function runAll(opts) {
@@ -331,6 +361,8 @@ export async function runAll(opts) {
   const baseEnv = { ...process.env, BASE_URL: opts.baseUrl, FORCE_COLOR: '0' };
   delete baseEnv.PW_JSON_FILE;
   delete baseEnv.PW_OUTPUT_DIR;
+  delete baseEnv.PW_TABS;
+  delete baseEnv.PW_CDP_CHROME;
   const common = ['--workers=1', '--retries=3'];
   const rows = [];
 
@@ -385,10 +417,19 @@ export async function runAll(opts) {
   }
 
   // 3. Web + integration tests in each browser, one browser at a time.
+  //    Headed: one window per browser, every test a new tab (helpers/web.ts, PW_TABS=1).
+  if (opts.headed) await closeHeldBrowsers();      // last run's windows
   for (const b of browsers) {
     tell({ step: b, message: `Web and integration tests in ${b === 'chrome' ? 'Chrome' : 'Firefox'} (browser ${browsers.indexOf(b) + 1} of ${browsers.length})` });
     const jsonFile = path.join(rawDir, `${b}.json`);
     const env = { ...baseEnv, PW_JSON_FILE: jsonFile, PW_OUTPUT_DIR: path.join(runDir, 'artifacts', b) };
+    if (opts.headed) {
+      env.PW_TABS = '1';
+      if (b === 'chrome') {
+        try { env.PW_CDP_CHROME = await openChromeWindow(); }
+        catch (e) { console.log(`(Chrome window for tabs not opened: ${stripAnsi(e.message).split('\n')[0]}. Tests still run.)`); }
+      }
+    }
     const args = [PW_CLI, 'test', 'tests/web', 'tests/integration', `--project=${b}`, '--pass-with-no-tests', ...common];
     if (opts.headed) args.push('--headed');
     await runNode(args, { env, onLine: countLine });

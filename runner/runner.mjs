@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { ROOT, ALL_BROWSERS, STAGING_HOST, loadEnvironment, newRunId, safeName, repoInfo, runAll } from './lib.mjs';
+import { ROOT, ALL_BROWSERS, STAGING_HOST, loadEnvironment, newRunId, safeName, repoInfo, runAll, closeHeldBrowsers } from './lib.mjs';
 
 export const PORT = 7357;
 export const DEFAULT_ORIGINS = [
@@ -223,6 +223,9 @@ export function createRunner(opts = {}) {
 // npm run runner
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const runner = createRunner();
+  const stop = async () => { await closeHeldBrowsers(); process.exit(0); };
+  process.on('SIGINT', stop);
+  process.on('SIGTERM', stop);
   runner.listen().then(port => {
     const info = repoInfo(ROOT);
     console.log('');
@@ -236,6 +239,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.log('  Keep this window open while you test. Stop it with Ctrl+C.');
     if (process.env.NO_PUSH === '1') console.log('  NO_PUSH=1: runs are not committed or pushed.');
     if (process.env.HEADED === '0') console.log('  HEADED=0: browsers run hidden.');
+    else console.log('  Each browser opens one window; every test is a new tab. Chrome stays open after a run (the next RUN closes it).');
     console.log('');
   }).catch(e => {
     if (e.code === 'EADDRINUSE') console.error(`Port ${PORT} is busy: the runner is probably already running in another window. Close that one first.`);

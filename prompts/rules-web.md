@@ -5,8 +5,8 @@ Paste this whole file into your prompt, under **RULES:**. It tells the AI how te
 - Write Playwright tests in TypeScript. One file: `tests/web/<feature>.web.spec.ts` (`<feature>` is my card, for example `card-02`).
 - Start the file like this:
   ```ts
-  import { test, expect } from '@playwright/test';
-  import { signIn, newMobile, messageUnder } from '../../helpers/web';
+  import { test, expect, signIn, newMobile, messageUnder } from '../../helpers/web';
+  (`test` and `expect` come from `helpers/web`, not from '@playwright/test': in a headed run each test then opens a tab in one browser window.)
   ```
 - Our helper does the rest. Never write the site address or the name-tag in a test.
   - `await signIn(page)` opens the site and signs in with my name-tag; you are then on **Home**. Call it in `test.beforeEach`. On a first visit the site shows a "Your name" dialog that blocks the page until it is filled in; `signIn` fills it in. Never `page.goto` a page without it.
