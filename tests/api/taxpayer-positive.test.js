@@ -1,33 +1,75 @@
-// Card 01 · TRN-01 · Register a taxpayer · API · positive tests
-// From charters/card-01-charter.json, nodes with status "API test".
-const { api, check, finish, newMobile } = require('../../helpers/api-client');
+// Card 01 · TRN-01 · Register a taxpayer · API · positive tests (+, should work)
+// From charters/card-01-charter.json, nodes with status "API test": A1 to A11.
+const { api, check, finish, newMobile, ME } = require('../../helpers/api-client');
+
+const URL = '/api/v1/training/taxpayers';
 
 (async () => {
   const mobile = newMobile();
 
-  // T1 · Users + · Create a taxpayer with a 09 mobile
-  const t1 = await api('POST', '/api/v1/training/taxpayers', { full_name: 'Ana Dela Cruz', mobile });
+  // A1 · AC-1 · create a taxpayer using "Ana Dela Cruz" and a new mobile, no email
+  const t1 = await api('POST', URL, { full_name: 'Ana Dela Cruz', mobile });
   const b1 = t1.body || {};
-  check('T1', 'Create a taxpayer with a 09 mobile', `201, full_name "Ana Dela Cruz", mobile ${mobile}, email null`,
-    t1, t1.status === 201 && b1.full_name === 'Ana Dela Cruz' && b1.mobile === mobile && b1.email === null && !!b1.taxpayer_id);
-  if (t1.status !== 201) return finish('taxpayer-positive');   // no taxpayer: stop
+  check('A1', 'AC-1 · create a taxpayer using "Ana Dela Cruz" and a new mobile, no email', `201, full_name "Ana Dela Cruz", mobile ${mobile}, email null, has taxpayer_id and created_at`,
+    t1, t1.status === 201 && b1.full_name === 'Ana Dela Cruz' && b1.mobile === mobile && b1.email === null
+      && !!b1.taxpayer_id && !!b1.created_at);
+  if (t1.status !== 201) return finish('taxpayer-positive');   // no taxpayer: A2 and A3 can't run
 
-  // T2 · Core + · See my taxpayer
-  const t2 = await api('GET', `/api/v1/training/taxpayers/${b1.taxpayer_id}`);
+  // A2 · AC-2 · read back the taxpayer from A1 by its taxpayer_id
+  const t2 = await api('GET', `${URL}/${b1.taxpayer_id}`);
   const b2 = t2.body || {};
-  check('T2', 'See my taxpayer', '200, the same 5 fields as T1',
-    t2, t2.status === 200 && b2.taxpayer_id === b1.taxpayer_id && b2.full_name === 'Ana Dela Cruz'
-      && b2.mobile === mobile && b2.email === null && b2.created_at === b1.created_at);
+  check('A2', 'AC-2 · read back the taxpayer from A1 by its taxpayer_id', '200, the same taxpayer_id, full_name, mobile, email, created_at as A1',
+    t2, t2.status === 200 && b2.taxpayer_id === b1.taxpayer_id && b2.full_name === b1.full_name
+      && b2.mobile === b1.mobile && b2.email === b1.email && b2.created_at === b1.created_at);
 
-  // T3 · Data + · Spaces around the name are removed
-  const t3 = await api('POST', '/api/v1/training/taxpayers', { full_name: '  Ana Dela Cruz  ', mobile: newMobile() });
-  check('T3', 'Spaces around the name are removed', '201, full_name "Ana Dela Cruz"',
-    t3, t3.status === 201 && (t3.body || {}).full_name === 'Ana Dela Cruz');
+  // A3 · AC-2 · find the taxpayer from A1 in my list (created_by = my name-tag)
+  const t3 = await api('GET', URL);
+  const row = Array.isArray(t3.body) ? t3.body.find(r => r.taxpayer_id === b1.taxpayer_id) : undefined;
+  check('A3', 'AC-2 · find the taxpayer from A1 in my list (created_by = my name-tag)', `200, a row with the same taxpayer_id, full_name, mobile, and created_by ${ME}`,
+    { status: t3.status, row }, t3.status === 200 && !!row && row.full_name === 'Ana Dela Cruz'
+      && row.mobile === mobile && row.created_by === ME);
 
-  // T10 · Numbers + · Name of 100 letters (the limit)
-  const t10 = await api('POST', '/api/v1/training/taxpayers', { full_name: 'A'.repeat(100), mobile: newMobile() });
-  check('T10', 'Name of 100 letters (the limit)', '201, full_name is the 100 letters',
-    { status: t10.status, length: (t10.body || {}).full_name?.length }, t10.status === 201 && (t10.body || {}).full_name === 'A'.repeat(100));
+  // A4 · AC-3 · create a taxpayer using "  Ana Dela Cruz  " (spaces around): saved as "Ana Dela Cruz"
+  const t4 = await api('POST', URL, { full_name: '  Ana Dela Cruz  ', mobile: newMobile() });
+  check('A4', 'AC-3 · create a taxpayer using "  Ana Dela Cruz  " (spaces around): saved as "Ana Dela Cruz"', '201, full_name "Ana Dela Cruz"',
+    t4, t4.status === 201 && t4.body?.full_name === 'Ana Dela Cruz');
+
+  // A5 · AC-5 · accept the full name "Al" (2 letters, the lower limit)
+  const t5 = await api('POST', URL, { full_name: 'Al', mobile: newMobile() });
+  check('A5', 'AC-5 · accept the full name "Al" (2 letters, the lower limit)', '201, full_name "Al"',
+    t5, t5.status === 201 && t5.body?.full_name === 'Al');
+
+  // A6 · AC-5 · accept a full name of 100 letters (the upper limit)
+  const t6 = await api('POST', URL, { full_name: 'A'.repeat(100), mobile: newMobile() });
+  check('A6', 'AC-5 · accept a full name of 100 letters (the upper limit)', '201, full_name is the 100 letters',
+    { status: t6.status, length: t6.body?.full_name?.length }, t6.status === 201 && t6.body?.full_name === 'A'.repeat(100));
+
+  // A7 · AC-5 · accept the full name "Ñoño O'Brien-Cruz Jr." (Ñ and . - ')
+  const t7 = await api('POST', URL, { full_name: "Ñoño O'Brien-Cruz Jr.", mobile: newMobile() });
+  check('A7', 'AC-5 · accept the full name "Ñoño O\'Brien-Cruz Jr." (Ñ and . - \')', `201, full_name "Ñoño O'Brien-Cruz Jr."`,
+    t7, t7.status === 201 && t7.body?.full_name === "Ñoño O'Brien-Cruz Jr.");
+
+  // A8 · AC-6 · accept a blank email "" (saved as null)
+  const t8 = await api('POST', URL, { full_name: 'Ana Dela Cruz', mobile: newMobile(), email: '' });
+  check('A8', 'AC-6 · accept a blank email "" (saved as null)', '201, email null',
+    t8, t8.status === 201 && t8.body?.email === null);
+
+  // A9 · AC-6 · accept the email "rosa@example.com"
+  const t9 = await api('POST', URL, { full_name: 'Ana Dela Cruz', mobile: newMobile(), email: 'rosa@example.com' });
+  check('A9', 'AC-6 · accept the email "rosa@example.com"', '201, email "rosa@example.com"',
+    t9, t9.status === 201 && t9.body?.email === 'rosa@example.com');
+
+  // A10 · AC-6 · accept an email of 254 characters (the limit)
+  const email254 = `${'a'.repeat(242)}@example.com`;
+  const t10 = await api('POST', URL, { full_name: 'Ana Dela Cruz', mobile: newMobile(), email: email254 });
+  check('A10', 'AC-6 · accept an email of 254 characters (the limit)', '201, email is the 254 characters',
+    { status: t10.status, length: t10.body?.email?.length }, t10.status === 201 && t10.body?.email === email254);
+
+  // A11 · AC-8 · accept the mobile +639 + 9 digits (saved as 09 + the same 9 digits)
+  const nine = newMobile().slice(2);
+  const t11 = await api('POST', URL, { full_name: 'Ana Dela Cruz', mobile: `+639${nine}` });
+  check('A11', 'AC-8 · accept the mobile +639 + 9 digits (saved as 09 + the same 9 digits)', `201, mobile saved as 09${nine}`,
+    t11, t11.status === 201 && t11.body?.mobile === `09${nine}`);
 
   finish('taxpayer-positive');
 })();

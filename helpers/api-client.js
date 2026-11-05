@@ -6,6 +6,8 @@ const { BASE_URL, TENANT, ME } = require('../config/environment');
 const HEADERS = { 'Content-Type': 'application/json', 'X-Tenant-ID': TENANT, 'X-User-ID': ME };
 const AS_PROBE = { ...HEADERS, 'X-User-ID': `${ME}-probe` };   // my own second practice user
 const NO_USER = { 'Content-Type': 'application/json', 'X-Tenant-ID': TENANT }; // no X-User-ID
+const OTHER_CASE = ME === ME.toLowerCase() ? ME.toUpperCase() : ME.toLowerCase();
+const AS_OTHER_CASE = { ...HEADERS, 'X-User-ID': OTHER_CASE };   // my name-tag in other letter case
 
 // Call the API. Returns { status, body }. Never throws.
 async function api(method, urlPath, body, headers = HEADERS) {
@@ -59,4 +61,4 @@ const newPin = () => {                                   // property PIN NNN-NN-
 };
 const newReference = () => `A${digits(2)}-${digits(9)}`; // business or fee bill reference
 
-module.exports = { api, check, finish, newMobile, newPin, newReference, HEADERS, AS_PROBE, NO_USER, ME };
+module.exports = { api, check, finish, newMobile, newPin, newReference, HEADERS, AS_PROBE, NO_USER, AS_OTHER_CASE, ME };

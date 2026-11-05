@@ -1,58 +1,38 @@
 # Card 01 · web prompt (filled in)
 
-Copy everything in the box, then paste your Card 01 charter JSON under the last line.
+1. Click the **copy icon** at the top right of the grey box below and paste into a **new** AI chat.
+2. Under **RULES:** paste all of `prompts/rules-web.md` (open it › **Copy raw file**).
+3. Under **CHARTER:** paste your Card 01 charter JSON. Press **Enter**.
+
+The AI answers with 1 file: tests/web/card-01.web.spec.ts.
 
 ````
-You are a tester on my team. Write web tests for the user story below.
+Write web tests for my user story.
 
-1 · STORY
-TRN-01 · Register a taxpayer
-As a treasury clerk, I want to register a taxpayer with a mobile number, so that I can bill them later.
+STORY:
+Card 01 · TRN-01 · Register a taxpayer
+Story: As a clerk, I create a taxpayer with a mobile, so I can bill them later.
 Acceptance criteria:
-- AC-1 Register a taxpayer: the result says "<name> created — mobile <mobile>." and My data › My taxpayers shows the row
-- AC-2 Spaces around the name are removed
-- AC-3 A wrong mobile is refused: "must be a PH mobile 09XXXXXXXXX or +639XXXXXXXXX"
-- AC-4 A wrong name is refused: "2-100 characters: letters, spaces, . - ' and Ñ only" (100 letters OK, 101 not)
-- AC-5 The same mobile cannot be registered twice: "already registered for this tenant"
-- AC-6 Only I can see my taxpayer: another user gets "Not Found"
+- AC-1: Section "1 — Create a taxpayer" shows `[full name] created — mobile [mobile].`
+- AC-2: The same taxpayer details show under My Data › My taxpayers.
+- AC-3: Spaces around the name are removed, both in the "created" message and in My Data.
+- AC-4: A mobile that's already registered is not accepted. Error message: `already registered for this tenant`
+- AC-5: Name accepts only 2–100 characters: letters, spaces, `. - '` and Ñ. Error message: `2-100 characters: letters, spaces, . - ' and Ñ only`
+- AC-6: Email is optional. If typed, it needs one `@` with a dot after it, 254 characters max. Error message: `invalid email format`
+- AC-7: A taxpayer created under my name-tag shows only for that name-tag. Under another name-tag, My Data shows `None yet — create one in Training setup.` and the Taxpayer lists are empty.
+- AC-8: Mobile accepts only `09` + 9 digits, or `+639` + 9 digits. No spaces, no dashes. Error message: `must be a PH mobile 09XXXXXXXXX or +639XXXXXXXXX`
+Example API response:
+POST /api/v1/training/taxpayers {"full_name":"Ana Dela Cruz","mobile":"09013724603"}
+→ 201 {"taxpayer_id":"d55f5627-8477-4a54-955c-42cb50e857b7","full_name":"Ana Dela Cruz","mobile":"09013724603","email":null,"created_at":"2026-11-02T18:22:04.959Z"}
+GET /api/v1/training/taxpayers → 200 a list of rows with taxpayer_id, tenant_id, full_name, mobile, email, created_by, created_at
 
-2 · TESTS
-Automate every node in my charter JSON (at the end) whose "statusId" is "st_ui".
-One test per node. Use the node's id, request or steps, and expected result exactly.
+TESTS:
+One test for each node in my charter with the status "UI journey".
+Use the node's id, its request or steps, and its expected result, word for word.
 
-3 · FILES
-Give me tests/web/card-01.web.spec.ts.
+RULES:
+<paste prompts/rules-web.md here>
 
-4 · RULES
-Follow our project rules:
-- Write Playwright tests in TypeScript. One file: `tests/web/<feature>.web.spec.ts` (`<feature>` is my card, for example `card-02`).
-- Start the file like this:
-  ```ts
-  import { test, expect } from '@playwright/test';
-  import { signIn, newMobile } from '../../helpers/web';
-  ```
-- Our helper does the rest. Never write the site address or the name-tag in a test.
-  - `await signIn(page)` opens the site and signs in with my name-tag. Call it in `test.beforeEach`.
-  - `newMobile()` makes a new mobile on every run.
-- Open pages the way a clerk does: click the buttons and links. Only `signIn` uses a URL.
-- The charter's Steps say what each thing is: `button "Create taxpayer"` → `getByRole('button', { name: 'Create taxpayer' })`; `link "My data"` → `getByRole('link', { name: 'My data' })`. A `top bar link` is inside `getByRole('navigation', { name: 'Main' })`.
-- One `test(...)` per charter node, named with the node's id: `test('W3 · Users + · ...', ...)`. Each test makes its own data.
-- Find things the way a person sees them: `getByRole`, `getByLabel`, `getByText`, with the exact texts from the charter.
-- Check with `expect(...)`. Never wait a fixed time (no `waitForTimeout`).
-- Never change an expected text to match what you think the screen shows. If one looks wrong, say so after the code.
-- Reply with the file in one code block, with the file name on the line above it. Then at most 3 short notes.
-
-Example: one test from our project (`tests/web/taxpayer.web.spec.ts`):
-
-```ts
-test('W2 · Syntax − · a 10-digit mobile shows the message under Mobile', async ({ page }) => {
-  await page.getByLabel('Full name').fill('Ana Dela Cruz');
-  await page.getByLabel('Mobile (09XXXXXXXXX)').fill('0917123456');
-  await page.getByRole('button', { name: 'Create taxpayer' }).click();
-  await expect(page.getByText('must be a PH mobile 09XXXXXXXXX or +639XXXXXXXXX')).toBeVisible();
-  await expect(page.getByText('created — mobile')).toBeHidden();
-});
-```
-
-MY CHARTER JSON:
+CHARTER:
+<paste your Card 01 charter JSON here>
 ````

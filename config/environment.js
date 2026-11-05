@@ -23,4 +23,6 @@ module.exports = {
   BASE_URL: process.env.BASE_URL || env.BASE_URL,        // a BASE_URL setting wins over the file
   TENANT: env.TENANT,
   ME,
+  // The browsers npm run test:watch uses, in run order (Charter360 sends its own list to the runner).
+  browsers: ['chrome', 'firefox'],
 };

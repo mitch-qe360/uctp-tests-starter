@@ -3,3 +3,6 @@ reports/*
 !reports/.gitkeep
 test-results/
 .DS_Store
+
+# Runner pairing code (npm run runner). Never commit it.
+.runner-code
