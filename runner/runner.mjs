@@ -11,7 +11,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { ROOT, ALL_BROWSERS, STAGING_HOST, loadEnvironment, newRunId, safeName, repoInfo, runAll, closeHeldBrowsers, runDay, findRunDir, linkTo, makeControl } from './lib.mjs';
+import { ROOT, ALL_BROWSERS, STAGING_HOST, loadEnvironment, newRunId, safeName, repoInfo, runAll, closeHeldBrowsers, runDay, findRunDir, linkTo, makeControl, scanTests, charterFiles, saveCharterFiles } from './lib.mjs';
 
 export const PORT = 7357;
 export const DEFAULT_ORIGINS = [
@@ -174,7 +174,17 @@ export function createRunner(opts = {}) {
           fs.mkdirSync(path.dirname(dest), { recursive: true });
           fs.writeFileSync(dest, f.content);
         }
-        return send(res, 200, { written: files.map(f => f.path) }, allowed);
+        const written = files.map(f => f.path);
+        // Saved with a charter: remember its files, so its RUN runs only those.
+        const saved = typeof body.charter === 'string' && body.charter.trim()
+          ? saveCharterFiles(root, body.charter, written, body.replace === true) : null;
+        return send(res, 200, { written, charter_files: saved }, allowed);
+      }
+
+      if (req.method === 'GET' && p === '/tests') {
+        const name = url.searchParams.get('charter');
+        const own = name ? charterFiles(root, name) : null;
+        return send(res, 200, { files: scanTests(root, own), charter_files: own }, allowed);
       }
 
       if (req.method === 'POST' && p === '/run') {
@@ -200,8 +210,12 @@ export function createRunner(opts = {}) {
           only = ids;
         }
         if (body.headed !== undefined && typeof body.headed !== 'boolean') return send(res, 400, { error: 'headed must be true or false.' }, allowed);
+        if (body.name_tag !== undefined && (typeof body.name_tag !== 'string' || !/^[A-Za-z0-9._-]{2,40}$/.test(body.name_tag) || /^Ana-4821$/.test(body.name_tag))) {
+          return send(res, 400, { error: 'name_tag must be your own name-tag from the UCTP top bar, like "Mitch-6973".' }, allowed);
+        }
         const job = { runId, charter: body.charter && typeof body.charter === 'object' ? body.charter : null,
-          name: safeName(body.name), baseUrl: base.origin, browsers, only, headed: body.headed !== false, control: makeControl() };
+          name: safeName(body.name), baseUrl: base.origin, browsers, only, headed: body.headed !== false, control: makeControl(),
+          nameTag: body.name_tag || null, files: charterFiles(root, body.name) };
         busy = true;
         current = job;
         runs.set(runId, { state: 'running', step: 'saving', done: 0, total: 0, message: 'Starting' });

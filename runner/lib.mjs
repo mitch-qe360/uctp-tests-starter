@@ -124,7 +124,8 @@ function inHook(result, spec) {
 //   passed  = passed on the first try
 //   flaky   = failed, then passed on a retry
 //   failed  = failed every try
-//   blocked = skipped, interrupted, or failed in a beforeAll / beforeEach hook
+//   not tested = test.fixme / test.skip (an ASK the charter hasn't answered yet)
+//   blocked = interrupted, skipped for another reason, or failed in a beforeAll / beforeEach hook
 export function rowsFromPlaywright(report, browser, runDir) {
   const rows = [];
   const walk = suite => {
@@ -133,7 +134,9 @@ export function rowsFromPlaywright(report, browser, runDir) {
         const results = t.results || [];
         const last = results[results.length - 1] || {};
         let status;
+        const asked = (t.annotations || spec.annotations || []).some(a => a.type === 'fixme' || a.type === 'skip');
         if (t.status === 'flaky') status = 'flaky';
+        else if (t.status === 'skipped' && asked) status = 'not_tested';
         else if (t.status === 'skipped' || results.some(r => r.status === 'interrupted')) status = 'blocked';
         else if (t.status === 'expected') status = last.status === 'skipped' ? 'blocked' : 'passed';
         else status = results.length && inHook(last, spec) ? 'blocked' : 'failed';
@@ -143,7 +146,8 @@ export function rowsFromPlaywright(report, browser, runDir) {
         if (status !== 'passed') {
           const bad = [...results].reverse().find(r => r.status !== 'passed' && r.status !== 'skipped') || last;
           const msg = (bad.errors || []).map(e => e.message || '').join('\n') || bad.error?.message || '';
-          error = msg ? firstLines(msg) : (status === 'blocked' ? 'Did not run (skipped or stopped)' : null);
+          error = msg ? firstLines(msg) : (status === 'not_tested' ? 'Not written yet (test.fixme): answer its ASK'
+            : status === 'blocked' ? 'Did not run (skipped or stopped)' : null);
           if (status === 'flaky' && error) error = `Passed on retry ${last.retry}. First failure:\n${error}`;
           const shot = (bad.attachments || []).find(a => a.name === 'screenshot' && a.path);
           if (shot && runDir) screenshot = path.relative(runDir, shot.path).split(path.sep).join('/');
@@ -463,12 +467,17 @@ export async function runAll(opts) {
   tell({});
 
   const baseEnv = { ...process.env, BASE_URL: opts.baseUrl, FORCE_COLOR: '0' };
+  if (opts.nameTag) baseEnv.UCTP_NAME_TAG = opts.nameTag;   // config/environment.js reads it before its own ME
   for (const k of ['PW_JSON_FILE', 'PW_OUTPUT_DIR', 'PW_TABS', 'PW_CDP_CHROME']) delete baseEnv[k];
   // only: run just these ids (["A1","W3"]); a step with none of them is skipped (no browser opens).
   const only = Array.isArray(opts.only) && opts.only.length ? opts.only : null;
   const grep = only ? onlyGrep(only) : opts.grep;
-  const wantApi = !only || only.some(id => id[0] === 'A');
-  const wantBrowsers = !only || only.some(id => id[0] === 'W' || id[0] === 'I');
+  // files: only this charter's test files (saved with it from Charter360); none given = every file.
+  const files = Array.isArray(opts.files) ? opts.files : null;
+  const apiFiles = files ? files.filter(f => f.startsWith('tests/api/')) : ['tests/api'];
+  const webFiles = files ? files.filter(f => /^tests\/(web|integration)\//.test(f)) : ['tests/web', 'tests/integration'];
+  const wantApi = apiFiles.length > 0 && (!only || only.some(id => id[0] === 'A'));
+  const wantBrowsers = webFiles.length > 0 && (!only || only.some(id => id[0] === 'W' || id[0] === 'I'));
   const control = opts.control || makeControl();
   const common = ['--workers=1', '--retries=3', '--pass-with-no-tests', ...(grep ? ['--grep', String(grep)] : [])];
   const finished = new Set();   // steps that ran to the end
@@ -482,8 +491,8 @@ export async function runAll(opts) {
   }
 
   // Progress total (listing starts no browser).
-  const browserArgs = b => ['tests/web', 'tests/integration', `--project=${b}`, ...common];
-  const apiArgs = ['tests/api', '--project=api', ...common];
+  const browserArgs = b => [...webFiles, `--project=${b}`, ...common];
+  const apiArgs = [...apiFiles, '--project=api', ...common];
   let total = wantApi ? listTests(apiArgs, baseEnv).length : 0;
   if (wantBrowsers) for (const b of browsers) total += listTests(browserArgs(b), baseEnv).length;
   tell({ total });
@@ -597,4 +606,41 @@ function readPwRows(jsonFile, browser, runDir) {
   } catch {
     return [{ id: '?', title: `${browser}: the results file could not be read`, browser, status: 'blocked', error: jsonFile, screenshot: null }];
   }
+}
+
+
+// The tests in the repo's test files, for Charter360's count check before RUN: each file's test ids (A1, W3 …)
+// and whether a bare test.fixme('…') / test.skip('…') (no body) would skip the whole file.
+const TEST_ID_RE = /\btest(?:\.(?:fixme|skip|only|fail))?\(\s*(['"`])([AWI]\d{1,3})\s*·/g;
+const BARE_SKIP_RE = /\btest\.(?:fixme|skip)\(\s*(['"`])(?:\\.|(?!\1)[^\n])*\1\s*\)/;
+export function scanTests(root = ROOT, only = null) {
+  const out = [];
+  for (const kind of ['api', 'web', 'integration']) {
+    const dir = path.join(root, 'tests', kind);
+    let names = [];
+    try { names = fs.readdirSync(dir).filter(n => /\.spec\.(ts|js|mjs)$/.test(n)).sort(); } catch { /* no folder */ }
+    for (const n of names) {
+      const rel = `tests/${kind}/${n}`;
+      if (only && !only.includes(rel)) continue;
+      const text = fs.readFileSync(path.join(dir, n), 'utf8');
+      const ids = [...text.matchAll(TEST_ID_RE)].map(m => m[2]);
+      out.push({ path: rel, ids, bare_skip: BARE_SKIP_RE.test(text) });
+    }
+  }
+  return out;
+}
+
+// The test files saved with a charter (charters/<name>.files.json), or null for a charter saved before this list.
+export function charterFiles(root, name) {
+  try {
+    const list = JSON.parse(fs.readFileSync(path.join(root, 'charters', `${safeName(name)}.files.json`), 'utf8'));
+    return Array.isArray(list) ? list.filter(f => typeof f === 'string' && fs.existsSync(path.join(root, ...f.split('/')))) : null;
+  } catch { return null; }
+}
+export function saveCharterFiles(root, name, paths, replace) {
+  const old = replace ? [] : (charterFiles(root, name) || []);
+  const list = [...new Set([...old, ...paths.filter(p => p.startsWith('tests/'))])].sort();
+  fs.mkdirSync(path.join(root, 'charters'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'charters', `${safeName(name)}.files.json`), JSON.stringify(list, null, 1) + '\n');
+  return list;
 }

@@ -23,7 +23,7 @@ uctp-tests/
 │   └── integration/
 │       └── trn-01.spec.ts                 the API and the screen agree
 ├── stories/                   the user stories and their acceptance criteria
-├── charters/                  the test charters (JSON from Charter360)
+├── charters/                  the test charters (JSON from Charter360) and <charter>.files.json: the test files saved with each one (RUN runs only those)
 ├── prompts/                   your 4-part prompt, our project rules, the charter-update prompt, the review checklist
 ├── scripts/summary.js         joins all reports into reports/summary.json
 ├── scripts/doctor.mjs         npm run doctor: is this laptop ready?
@@ -47,6 +47,8 @@ The worked example is **Card 01 · Register a taxpayer**: 34 API tests (A), 9 we
 You are now on **your** copy: the address is `github.com/<your-username>/uctp-tests`. Do every next step there.
 
 ## 2 · Put in your name-tag (1 file)
+
+Using Charter360? Type your name-tag in **Environment settings** (the gear) instead: RUN passes it to the tests (`UCTP_NAME_TAG`), so this file can stay as it is.
 
 Your name-tag is in the top bar of the UCTP site: `You are: Ana-4821` means `Ana-4821`.
 

@@ -391,3 +391,37 @@ test('pages_url comes from the git remote, and the report shows it', () => {
   s.pages_url = want;
   assert.match(reportHtml(s), /On GitHub Pages about a minute after the push: <a href="https:\/\/ana\.github\.io\/uctp-tests\/2026-11-05\//);
 });
+
+test('files saved with a charter: RUN gets only those, /tests lists ids and bare skips, name_tag goes to the job', () => withRunner(async ({ call, root, jobs }) => {
+  const api = "import { test } from '@playwright/test';\ntest('A1 · AC-1 · create', async () => {});\ntest.fixme('A2 · AC-1 · ASK: empty name');\n";
+  const web = "test('W1 · AC-1 · shows', async () => {});\n";
+  let res = await call('POST', '/files', { headers: good, body: { charter: 'Test US1', files: [
+    { path: 'tests/api/trn-01.chatgpt.spec.ts', content: api }, { path: 'tests/web/trn-01.chatgpt.spec.ts', content: web }] } });
+  assert.equal(res.status, 200);
+  assert.deepEqual((await res.json()).charter_files, ['tests/api/trn-01.chatgpt.spec.ts', 'tests/web/trn-01.chatgpt.spec.ts']);
+  await call('POST', '/files', { headers: good, body: { files: [{ path: 'tests/api/other.spec.ts', content: "test('A9 · x', async () => {});" }] } });
+  res = await call('GET', '/tests?charter=Test%20US1', { headers: good });
+  const t = await res.json();
+  assert.deepEqual(t.files.map(f => [f.path, f.ids, f.bare_skip]), [
+    ['tests/api/trn-01.chatgpt.spec.ts', ['A1', 'A2'], true], ['tests/web/trn-01.chatgpt.spec.ts', ['W1'], false]]);
+  res = await call('GET', '/tests', { headers: good });
+  assert.equal((await res.json()).files.length, 3, 'no charter: every file');
+  res = await call('POST', '/run', { headers: good, body: { name: 'Test US1', name_tag: 'Mitch-6973', browsers: ['chrome'] } });
+  assert.equal(res.status, 200);
+  assert.deepEqual(jobs[0].files, ['tests/api/trn-01.chatgpt.spec.ts', 'tests/web/trn-01.chatgpt.spec.ts']);
+  assert.equal(jobs[0].nameTag, 'Mitch-6973');
+  for (const bad of ['Ana-4821', '<your name-tag>', 'a']) {
+    res = await call('POST', '/run', { headers: good, body: { name: 'x', name_tag: bad, browsers: ['chrome'] } });
+    assert.equal(res.status, 400, bad);
+  }
+  res = await call('POST', '/files', { headers: good, body: { charter: 'Test US1', replace: true, files: [{ path: 'tests/web/trn-01.gemini.spec.ts', content: web }] } });
+  assert.deepEqual((await res.json()).charter_files, ['tests/web/trn-01.gemini.spec.ts'], 'replace keeps only the new files');
+}));
+
+test('a test.fixme test is Not tested, not Blocked', () => {
+  const report = { suites: [{ title: 'x', specs: [
+    { title: 'A2 · AC-1 · ASK: empty name', file: 'api/x.spec.ts', line: 3, tests: [{ status: 'skipped', annotations: [{ type: 'fixme' }], results: [{ status: 'skipped', retry: 0 }] }] }] }] };
+  const rows = rowsFromPlaywright(report, 'api', null);
+  assert.equal(rows[0].status, 'not_tested');
+  assert.match(rows[0].error, /ASK/);
+});
