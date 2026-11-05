@@ -11,7 +11,9 @@
     "runner": "node runner/runner.mjs",
     "test:watch": "node scripts/test-watch.mjs",
     "doctor": "node scripts/doctor.mjs",
-    "test": "npm run test:runner && npm run test:api && npm run test:web && npm run test:integration"
+    "test": "npm run test:runner && npm run test:api && npm run test:web && npm run test:integration",
+    "autostart": "node scripts/autostart.mjs",
+    "autostart:off": "node scripts/autostart.mjs --off"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0"

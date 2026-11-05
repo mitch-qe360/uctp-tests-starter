@@ -99,6 +99,16 @@ If your laptop blocks installs, do it with your IT admin.
    - **Windows** (PowerShell): `powershell -ExecutionPolicy Bypass -File .\setup-windows.ps1`
 3. It ends with `npm run doctor`. Every line must be ✅. Each ❌ line says how to fix it; fix it, then run `npm run doctor` again.
 
+## Start the runner by itself (optional)
+
+So you don't have to type `npm run runner` every time:
+
+```
+npm run autostart
+```
+
+It starts at login from now on (Mac and Windows) and keeps the same pairing code. To stop that: `npm run autostart:off`.
+
 ## Charter360 with your own Claude plan (optional)
 
 If you have a Claude Pro or Max plan and Claude Code on this laptop, Charter360 › My AI › **Claude Code (my Claude plan)** can use it instead of an API key. It's off by default. Turn it on only for yourself:

@@ -6,3 +6,4 @@ test-results/
 
 # Runner pairing code (npm run runner). Never commit it.
 .runner-code
+runner.log
