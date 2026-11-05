@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { createRunner } from './runner.mjs';
+import { createRunner, busyPortMessage } from './runner.mjs';
 import { ROOT, splitTitle, rowsFromPlaywright, buildSummary, sutName, runPaths, writeRunsIndex, browserMissing, linkTo, charterIds, safeName, reportHtml, stripCredentials } from './lib.mjs';
 
 const ORIGIN = 'https://qe-360-academy-staging.aiqe.pro';
@@ -321,4 +321,15 @@ test('a browser that is not installed: its tests count as not tested, with the m
   assert.equal(s.counts.not_tested, 1);
   s.messages = [msg];
   assert.match(reportHtml(s), /Firefox isn&#39;t installed/);
+});
+
+test('port busy: our runner gets its folder, code and how to stop it; another program gets a clear message', () => {
+  const ours = busyPortMessage({ status: { ok: true, version: '1', repo: 'uctp-tests', paired: true }, paired: true, code: '123456', pid: '4242' });
+  assert.match(ours, /Your runner is already running \(folder: uctp-tests, started earlier\)\. Use it: pairing code 123456\./);
+  assert.match(ours, /To restart it, stop it with: kill 4242/);
+  const other = busyPortMessage({ status: { ok: true, version: '1', repo: 'other-repo', paired: false }, paired: false, code: '123456', pid: '' });
+  assert.match(other, /another folder \(other-repo\)/);
+  assert.doesNotMatch(other, /123456/);
+  assert.match(other, /find its PID/);
+  assert.match(busyPortMessage({ status: null, pid: '99' }), /^Another program uses port 7357.*kill 99/);
 });
