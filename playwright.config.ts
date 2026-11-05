@@ -29,7 +29,8 @@ export default defineConfig({
   use: {
     baseURL: BASE_URL,    // BASE_URL setting, else config/environment.js
     trace: jsonFile ? 'off' : 'retain-on-failure',
-    screenshot: 'only-on-failure',
+    // In tab mode (PW_TABS=1) helpers/web.ts takes the failure screenshot of the test's own tab.
+    screenshot: process.env.PW_TABS === '1' ? 'off' : 'only-on-failure',
   },
   projects: [
     {

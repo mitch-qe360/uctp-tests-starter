@@ -1,8 +1,7 @@
 // Card 01 · TRN-01 · Register a taxpayer · integration tests: the API and the screen agree
 // From charters/card-01-charter.json, nodes with status "Integration": I1 to I6.
 // Each test uses BOTH sides: it calls the API (api) and drives the screen (page), then compares them.
-import { test, expect } from '@playwright/test';
-import { signIn, newMobile, messageUnder, api, AS_PROBE, ME } from '../../helpers/web';
+import { test, expect, signIn, newMobile, messageUnder, api, AS_PROBE, ME } from '../../helpers/web';
 
 const URL = '/api/v1/training/taxpayers';
 const DUP_MSG = 'already registered for this tenant';

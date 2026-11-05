@@ -33,9 +33,9 @@ Why it's short: the **how** (helpers, file names, style) never changes, so it li
 
 | Kind | Status in the charter | Rules file | The AI gives you |
 |---|---|---|---|
-| API | API test (green) | `rules-api.md` | `tests/api/card-NN-positive.test.js`, `-negative`, `-security` |
-| web | UI journey (blue) | `rules-web.md` | `tests/web/card-NN.web.spec.ts` |
-| integration | Integration (purple) | `rules-integration.md` | `tests/integration/card-NN.integration.spec.ts` |
+| API | API test (green) | `rules-api.md` | `tests/api/<story-id>.spec.ts` (e.g. `trn-02.spec.ts`) |
+| web | UI journey (blue) | `rules-web.md` | `tests/web/<story-id>.spec.ts` |
+| integration | Integration (purple) | `rules-integration.md` | `tests/integration/<story-id>.spec.ts` |
 
 Card 01, filled in: `card-01-api-prompt.md`, `card-01-web-prompt.md`, `card-01-integration-prompt.md`.
 After the run: `update-charter-prompt.md`. Before you commit: `review-checklist.md`.

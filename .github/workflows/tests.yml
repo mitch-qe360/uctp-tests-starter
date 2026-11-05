@@ -9,14 +9,18 @@ on:
 
 jobs:
   api:
-    name: API tests (Node)
+    name: API tests (Playwright, no browser)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      REPORT: api
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+          cache: npm
+      - run: npm ci
       - name: Runner tests (no browser)
         run: npm run test:runner
       - run: npm run test:api
@@ -25,7 +29,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: api-report
-          path: reports/*.json
+          path: reports/api/
           retention-days: 14
 
   web:
@@ -111,7 +115,7 @@ jobs:
       - uses: actions/download-artifact@v7
         with:
           name: api-report
-          path: reports
+          path: reports/api
         continue-on-error: true
       - uses: actions/download-artifact@v7
         with:

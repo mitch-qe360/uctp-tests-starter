@@ -1,9 +1,12 @@
 // Shared by the runner (runner/runner.mjs) and npm run test:watch (scripts/test-watch.mjs):
 // one test run = save the charter, API tests once, web + integration tests in each browser,
-// then summary.json, index.html and report.pdf in test-runs/<run_id>/, open the report, commit and push.
+// then test-runs/<YYYY-MM-DD>/<SUT> - <YYYY-MM-DD HHMMSS>.html (+ .pdf, .json, and a folder with the
+// screenshots), refresh test-runs/index.html (the list GitHub Pages shows), open the report, commit and push.
 //
 // Only fixed commands run here (node + Playwright's CLI, git), always as argument arrays, never a shell.
 import fs from 'node:fs';
+import os from 'node:os';
+import net from 'node:net';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -28,9 +31,31 @@ export function newRunId(date = new Date(), root = ROOT) {
   const p = n => String(n).padStart(2, '0');
   const base = `${date.getFullYear()}${p(date.getMonth() + 1)}${p(date.getDate())}-${p(date.getHours())}${p(date.getMinutes())}${p(date.getSeconds())}`;
   let id = base;
-  for (let n = 2; fs.existsSync(path.join(root, 'test-runs', id)); n++) id = `${base}-${n}`;
+  const day = path.join(root, 'test-runs', runDay(base));
+  const used = i => fs.existsSync(day) && fs.readdirSync(day).some(f => f.includes(` - ${runDay(i)} ${runTime(i)}`));
+  for (let n = 2; used(id); n++) id = `${base}-${n}`;
   return id;
 }
+
+// run_id "20261105-143000" -> day "2026-11-05", time "143000" (a "-2" suffix stays on the time)
+export const runDay = id => `${id.slice(0, 4)}-${id.slice(4, 6)}-${id.slice(6, 8)}`;
+export const runTime = id => id.slice(9);
+
+// The system under test (charter root) as a file-name part. Fallback "Tests".
+export function sutName(charter) {
+  const s = charterStory(charter).split('\n')[0].replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '-').replace(/\s+/g, ' ').trim().replace(/^[.\s-]+|[.\s-]+$/g, '').slice(0, 60).trim();
+  return s || 'Tests';
+}
+
+// Where one run's files go. The runner serves test-runs/<day>/ at /report/<run_id>/.
+export function runPaths(root, runId, sut) {
+  const dayDir = path.join(root, 'test-runs', runDay(runId));
+  const base = `${sut} - ${runDay(runId)} ${runTime(runId)}`;
+  return { dayDir, base, assetsDir: path.join(dayDir, base), html: `${base}.html`, pdf: `${base}.pdf`, json: `${base}.json` };
+}
+
+// "A b/c d.png" -> "A%20b/c%20d.png": a relative link that works from file:// and over http.
+export const linkTo = p => String(p).split('/').map(encodeURIComponent).join('/');
 
 // Charter name from the page -> a safe file name: only A-Z a-z 0-9 . _ -
 export function safeName(name) {
@@ -126,32 +151,12 @@ export function rowsFromPlaywright(report, browser, runDir) {
   return rows;
 }
 
-// Rows from the plain-Node API tests (tests/api/*.test.js, reports/<file>.json written by finish()).
-export function rowsFromApiReports(reports) {
-  const rows = [];
-  for (const rep of reports) {
-    for (const r of rep.results || []) {
-      const id = idOf(r.id);
-      const failed = r.result !== 'PASS';
-      rows.push({
-        id,
-        title: `${r.id} · ${r.test}`,
-        browser: 'api',
-        status: failed ? (id === '?' ? 'blocked' : 'failed') : 'passed',
-        error: failed ? `expected ${r.expected}\ngot ${String(r.actual).slice(0, 600)}` : null,
-        screenshot: null,
-      });
-    }
-  }
-  return rows;
-}
-
 export function buildSummary({ runId, startedAt, finishedAt, baseUrl, browsers, charter, rows }) {
   const counts = { passed: 0, flaky: 0, failed: 0, blocked: 0, not_tested: 0 };
   for (const r of rows) counts[r.status] = (counts[r.status] || 0) + 1;
   const have = new Set(rows.map(r => r.id));
   const notTested = charterIds(charter).filter(id => !have.has(id));
-  counts.not_tested = notTested.length;
+  counts.not_tested += notTested.length;
   return {
     run_id: runId,
     started_at: startedAt,
@@ -162,8 +167,9 @@ export function buildSummary({ runId, startedAt, finishedAt, baseUrl, browsers, 
     counts,
     results: rows,
     not_tested: notTested,
-    report: 'index.html',
+    report: 'index.html',      // set by runAll: "<SUT> - <day> <time>.html", relative to test-runs/<day>/
     pdf: 'report.pdf',
+    messages: [],
     pushed: false,
     push_message: '',
   };
@@ -183,11 +189,11 @@ export function reportHtml(summary) {
   const byOrder = (x, y) => { const a = order(x), b = order(y); return a[0] - b[0] || a[1] - b[1] || a[2] - b[2]; };
   const rows = [...[...summary.results].sort(byOrder), ...summary.not_tested.map(id => ({ id, title: `${id} · (no test ran for this charter line)`, browser: '-', status: 'not_tested' }))];
   const body = rows.map((r, i) => {
-    const hasDetail = r.status !== 'passed' && r.status !== 'not_tested' && (r.error || r.screenshot);
+    const hasDetail = r.status !== 'passed' && (r.error || r.screenshot);
     const main = `<tr class="row ${r.status}${hasDetail ? ' click' : ''}" data-i="${i}"${hasDetail ? ' tabindex="0"' : ''}>
 <td>${esc(r.id)}</td><td>${esc(splitTitle(r.title).ac)}</td><td>${esc(splitTitle(r.title).test)}</td><td>${esc(r.browser)}</td><td><span class="pill ${r.status}">${label[r.status] || esc(r.status)}</span></td></tr>`;
     if (!hasDetail) return main;
-    return main + `<tr class="detail" id="d${i}"><td colspan="5">${r.error ? `<pre>${esc(r.error)}</pre>` : ''}${r.screenshot ? `<img src="${esc(r.screenshot)}" alt="Screenshot of ${esc(r.id)} in ${esc(r.browser)}">` : ''}</td></tr>`;
+    return main + `<tr class="detail" id="d${i}"><td colspan="5">${r.error ? `<pre>${esc(r.error)}</pre>` : ''}${r.screenshot ? `<img src="${esc(linkTo(r.screenshot))}" alt="Screenshot of ${esc(r.id)} in ${esc(r.browser)}">` : ''}</td></tr>`;
   }).join('\n');
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -209,13 +215,15 @@ img{max-width:100%;border:1px solid var(--line)}
 .pill.passed{background:var(--ok)}.pill.flaky{background:var(--flaky)}.pill.failed{background:var(--bad)}
 .pill.blocked{background:var(--blocked)}.pill.not_tested{background:var(--grey)}
 .hint{color:var(--grey);font-size:13px}
+.msg{background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:8px 12px;margin:0 0 12px}
 @media print{tr.detail{display:table-row} .hint,.pdf{display:none} body{margin:0}}
 </style></head><body>
 <h1>Test run ${esc(summary.run_id)}</h1>
 <p class="meta">${esc(summary.base_url)} · browsers: ${esc((summary.browsers || []).join(', '))} · ${esc(summary.started_at)} to ${esc(summary.finished_at)}</p>
 ${summary.story ? `<div class="story">${esc(summary.story)}</div>` : ''}
 <div class="counts">${Object.keys(label).map(k => `<div class="count"><b>${c[k] || 0}</b>${label[k]}</div>`).join('')}</div>
-<p class="pdf">${summary.pdf ? '<a href="report.pdf">Open report.pdf</a>' : esc(summary.pdf_message || '')} <span class="hint">· Click a red or amber row to see why.</span></p>
+${(summary.messages || []).map(m => `<p class="msg">${esc(m)}</p>`).join('')}
+<p class="pdf">${summary.pdf ? `<a href="${esc(linkTo(summary.pdf))}">Open the PDF</a>` : esc(summary.pdf_message || '')} <span class="hint">· Click a red or amber row to see why.</span></p>
 <table><thead><tr><th>Id</th><th>AC</th><th>Test</th><th>Browser</th><th>Result</th></tr></thead><tbody>
 ${body}
 </tbody></table>
@@ -281,46 +289,115 @@ export function openInChrome(url) {
 }
 
 // Print index.html to report.pdf with Playwright's Chromium.
-async function printPdf(runDir) {
+async function printPdf(htmlFile, pdfFile) {
   const { chromium } = await import('@playwright/test');
   const browser = await chromium.launch();
   try {
     const page = await browser.newPage();
-    await page.goto(pathToFileURL(path.join(runDir, 'index.html')).href);
-    await page.pdf({ path: path.join(runDir, 'report.pdf'), format: 'A4', printBackground: true,
+    await page.goto(pathToFileURL(htmlFile).href);
+    await page.pdf({ path: pdfFile, format: 'A4', printBackground: true,
       margin: { top: '12mm', bottom: '12mm', left: '10mm', right: '10mm' } });
   } finally {
     await browser.close();
   }
 }
 
-// Count the tests a step will run (for the progress bar). 0 if unknown.
-async function countTests(args, env) {
+// The test titles a step will run (listing starts no browser). [] if unknown.
+function listTests(args, env) {
   const r = spawnSync(process.execPath, [PW_CLI, 'test', ...args, '--list', '--reporter=json'],
     { cwd: ROOT, env, encoding: 'utf8', timeout: 120000, maxBuffer: 64 * 1024 * 1024 });
   try {
-    let n = 0;
-    const walk = s => { for (const sp of s.specs || []) n += (sp.tests || []).length; (s.suites || []).forEach(walk); };
+    const titles = [];
+    const walk = s => { for (const sp of s.specs || []) for (const _ of sp.tests || []) titles.push(sp.title); (s.suites || []).forEach(walk); };
     (JSON.parse(r.stdout).suites || []).forEach(walk);
-    return n;
-  } catch { return 0; }
+    return titles;
+  } catch { return []; }
 }
 
-function legacyApiFiles(root = ROOT) {
-  const dir = path.join(root, 'tests', 'api');
-  return fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith('.test.js')).sort() : [];
+// Is this browser installed? Checks the file only: never starts the browser.
+export async function browserMissing(b, { exists = fs.existsSync, platform = process.platform, env = process.env } = {}) {
+  const { chromium, firefox } = await import('@playwright/test');
+  if (b === 'firefox') {
+    return exists(firefox.executablePath()) ? null : "Firefox isn't installed: run npx playwright install firefox";
+  }
+  if (env.CI) return exists(chromium.executablePath()) ? null : "Chromium isn't installed: run npx playwright install chromium";
+  const home = env.HOME || env.USERPROFILE || '';
+  const paths = platform === 'darwin'
+    ? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', path.join(home, 'Applications/Google Chrome.app/Contents/MacOS/Google Chrome')]
+    : platform === 'win32'
+      ? [env.PROGRAMFILES, env['PROGRAMFILES(X86)'], env.LOCALAPPDATA].filter(Boolean).map(d => path.join(d, 'Google', 'Chrome', 'Application', 'chrome.exe'))
+      : ['/opt/google/chrome/chrome', '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable'];
+  return paths.some(p => exists(p)) ? null : "Google Chrome isn't installed: run npx playwright install chrome";
+}
+
+// test-runs/index.html: every run, newest first, each linking its report. GitHub Pages shows this page.
+export function writeRunsIndex(root = ROOT) {
+  const top = path.join(root, 'test-runs');
+  const runs = [];
+  for (const day of fs.existsSync(top) ? fs.readdirSync(top).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)) : []) {
+    for (const f of fs.readdirSync(path.join(top, day)).filter(f => f.endsWith('.json'))) {
+      try {
+        const s = JSON.parse(fs.readFileSync(path.join(top, day, f), 'utf8'));
+        if (s.run_id && s.counts) runs.push({ day, s });
+      } catch { /* not a summary */ }
+    }
+  }
+  runs.sort((a, b) => b.s.run_id.localeCompare(a.s.run_id));
+  const c = s => `${s.counts.passed} passed, ${s.counts.flaky} flaky, ${s.counts.failed} failed, ${s.counts.blocked} blocked, ${s.counts.not_tested} not tested`;
+  let lastDay = '';
+  const items = runs.map(({ day, s }) => {
+    const head = day !== lastDay ? `${lastDay ? '</ul>' : ''}<h2>${esc(day)}</h2><ul>` : '';
+    lastDay = day;
+    return `${head}<li><a href="${esc(linkTo(`${day}/${s.report}`))}">${esc(s.report.replace(/\.html$/, ''))}</a> <span>${esc(c(s))}</span></li>`;
+  }).join('\n');
+  fs.mkdirSync(top, { recursive: true });
+  fs.writeFileSync(path.join(top, 'index.html'), `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test runs</title>
+<style>body{font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:24px;color:#111827}
+h1{font-size:22px} h2{font-size:16px;margin:18px 0 6px} li{margin:4px 0} span{color:#6b7280;font-size:13px}</style>
+</head><body><h1>Test runs</h1>
+${items ? items + '</ul>' : '<p>No runs yet.</p>'}
+</body></html>
+`);
+}
+
+// ---------- headed runs: one Chrome window that stays open, every test a new tab ----------
+// The window belongs to this process (the runner or test:watch). Tests reach it through Chrome's
+// DevTools port (PW_CDP_CHROME), open their own tab, and leave it open. The next run closes it.
+const held = [];
+export async function closeHeldBrowsers() {
+  for (const h of held.splice(0)) await h.close().catch(() => {});
+}
+export const heldBrowserCount = () => held.length;
+
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const srv = net.createServer();
+    srv.once('error', reject);
+    srv.listen(0, '127.0.0.1', () => { const { port } = srv.address(); srv.close(() => resolve(port)); });
+  });
+}
+
+async function openChromeWindow() {
+  const { chromium } = await import('@playwright/test');
+  const port = await freePort();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'uctp-chrome-'));
+  const context = await chromium.launchPersistentContext(dir, {
+    channel: 'chrome', headless: false, viewport: null, args: [`--remote-debugging-port=${port}`],
+  });
+  held.push({ close: async () => { await context.close(); fs.rmSync(dir, { recursive: true, force: true }); } });
+  return `http://127.0.0.1:${port}`;
 }
 
 // ---------- the whole run ----------
-// opts: { charter, name, baseUrl, browsers, headed, push, open, reportUrl(runId), onProgress(p) }
+// opts: { charter, name, baseUrl, browsers, headed, push, open, reportUrl(runId, reportFile), onProgress(p) }
 export async function runAll(opts) {
   const root = ROOT;
   const runId = opts.runId || newRunId();
   const startedAt = new Date().toISOString();
-  const runDir = path.join(root, 'test-runs', runId);
-  fs.mkdirSync(path.join(root, 'test-runs'), { recursive: true });
-  fs.mkdirSync(runDir, { recursive: true });
-  const rawDir = path.join(runDir, 'raw');
+  const P = runPaths(root, runId, sutName(opts.charter));
+  const rawDir = path.join(P.assetsDir, 'raw');
   fs.mkdirSync(rawDir, { recursive: true });
 
   const browsers = opts.browsers;
@@ -329,10 +406,10 @@ export async function runAll(opts) {
   tell({});
 
   const baseEnv = { ...process.env, BASE_URL: opts.baseUrl, FORCE_COLOR: '0' };
-  delete baseEnv.PW_JSON_FILE;
-  delete baseEnv.PW_OUTPUT_DIR;
-  const common = ['--workers=1', '--retries=3'];
+  for (const k of ['PW_JSON_FILE', 'PW_OUTPUT_DIR', 'PW_TABS', 'PW_CDP_CHROME']) delete baseEnv[k];
+  const common = ['--workers=1', '--retries=3', '--pass-with-no-tests', ...(opts.grep ? ['--grep', String(opts.grep)] : [])];
   const rows = [];
+  const messages = [];
 
   // 1. Save the charter.
   if (opts.saveCharter !== false && opts.charter && typeof opts.charter === 'object') {
@@ -340,12 +417,10 @@ export async function runAll(opts) {
     fs.writeFileSync(path.join(root, 'charters', `${safeName(opts.name)}.json`), JSON.stringify(opts.charter, null, 1));
   }
 
-  // Progress total: the Playwright tests per project + the plain-Node API checks.
-  let total = await countTests(['tests/api', '--project=api', '--pass-with-no-tests'], baseEnv);
-  for (const b of browsers) total += await countTests(['tests/web', 'tests/integration', `--project=${b}`, '--pass-with-no-tests'], baseEnv);
-  for (const f of legacyApiFiles(root)) {
-    total += (fs.readFileSync(path.join(root, 'tests', 'api', f), 'utf8').match(/\(\s*['"`][AWI]\d+['"`]/g) || []).length;
-  }
+  // Progress total (listing starts no browser).
+  const browserArgs = b => ['tests/web', 'tests/integration', `--project=${b}`, ...common];
+  let total = listTests(['tests/api', '--project=api', ...common], baseEnv).length;
+  for (const b of browsers) total += listTests(browserArgs(b), baseEnv).length;
   tell({ total });
 
   const countLine = line => {
@@ -354,70 +429,69 @@ export async function runAll(opts) {
     }
   };
 
-  // 2. API tests, once: the plain-Node files (tests/api/*.test.js), then Playwright API specs.
+  // 2. API tests, once.
   tell({ step: 'api', message: 'API tests' });
-  const legacy = legacyApiFiles(root);
-  if (legacy.length) {
-    const reportsDir = path.join(root, 'reports');
-    const reports = [];
-    for (const f of legacy) {
-      const name = f.replace(/\.test\.js$/, '');
-      const out = path.join(reportsDir, `${name}.json`);
-      fs.rmSync(out, { force: true });
-      await runNode([path.join(root, 'tests', 'api', f)], { env: baseEnv, timeoutMs: 5 * 60 * 1000 });
-      if (fs.existsSync(out)) {
-        try {
-          const rep = JSON.parse(fs.readFileSync(out, 'utf8'));
-          reports.push(rep);
-          fs.copyFileSync(out, path.join(rawDir, `api-${name}.json`));
-        } catch { /* unreadable report: its tests show as not tested */ }
-      }
-    }
-    const legacyRows = rowsFromApiReports(reports);
-    rows.push(...legacyRows);
-    tell({ done: Math.min(progress.done + legacyRows.length, progress.total || Infinity) });
-  }
   {
     const jsonFile = path.join(rawDir, 'api.json');
-    const env = { ...baseEnv, PW_JSON_FILE: jsonFile, PW_OUTPUT_DIR: path.join(runDir, 'artifacts', 'api') };
-    await runNode([PW_CLI, 'test', 'tests/api', '--project=api', '--pass-with-no-tests', ...common], { env, onLine: countLine });
-    rows.push(...readPwRows(jsonFile, 'api', runDir));
+    const env = { ...baseEnv, PW_JSON_FILE: jsonFile, PW_OUTPUT_DIR: path.join(P.assetsDir, 'artifacts', 'api') };
+    await runNode([PW_CLI, 'test', 'tests/api', '--project=api', ...common], { env, onLine: countLine });
+    rows.push(...readPwRows(jsonFile, 'api', P.dayDir));
   }
 
   // 3. Web + integration tests in each browser, one browser at a time.
+  //    Headed: one window per browser, every test a new tab (helpers/web.ts, PW_TABS=1).
+  if (opts.headed) await closeHeldBrowsers();      // last run's windows
   for (const b of browsers) {
-    tell({ step: b, message: `Web and integration tests in ${b === 'chrome' ? 'Chrome' : 'Firefox'} (browser ${browsers.indexOf(b) + 1} of ${browsers.length})` });
+    const name = b === 'chrome' ? 'Chrome' : 'Firefox';
+    tell({ step: b, message: `Web and integration tests in ${name} (browser ${browsers.indexOf(b) + 1} of ${browsers.length})` });
+    const missing = await browserMissing(b);
+    if (missing) {                                  // never start a browser that isn't there
+      messages.push(missing);
+      const titles = listTests(browserArgs(b), baseEnv);
+      rows.push(...titles.map(title => ({ id: idOf(title), title, browser: b, status: 'not_tested', error: missing, screenshot: null })));
+      tell({ done: Math.min(progress.done + titles.length, progress.total || Infinity), message: missing });
+      continue;
+    }
     const jsonFile = path.join(rawDir, `${b}.json`);
-    const env = { ...baseEnv, PW_JSON_FILE: jsonFile, PW_OUTPUT_DIR: path.join(runDir, 'artifacts', b) };
-    const args = [PW_CLI, 'test', 'tests/web', 'tests/integration', `--project=${b}`, '--pass-with-no-tests', ...common];
+    const env = { ...baseEnv, PW_JSON_FILE: jsonFile, PW_OUTPUT_DIR: path.join(P.assetsDir, 'artifacts', b) };
+    if (opts.headed) {
+      env.PW_TABS = '1';
+      if (b === 'chrome') {
+        try { env.PW_CDP_CHROME = await openChromeWindow(); }
+        catch (e) { console.log(`(Chrome window for tabs not opened: ${stripAnsi(e.message).split('\n')[0]}. Tests still run.)`); }
+      }
+    }
+    const args = [PW_CLI, 'test', ...browserArgs(b)];
     if (opts.headed) args.push('--headed');
     await runNode(args, { env, onLine: countLine });
-    rows.push(...readPwRows(jsonFile, b, runDir));
+    rows.push(...readPwRows(jsonFile, b, P.dayDir));
   }
 
-  // 4. summary.json, index.html, report.pdf
+  // 4. The report: <SUT> - <day> <time>.html, .pdf and .json in test-runs/<day>/, and the runs list.
   tell({ step: 'report', message: 'Writing the report' });
   const summary = buildSummary({ runId, startedAt, finishedAt: new Date().toISOString(), baseUrl: opts.baseUrl,
     browsers, charter: opts.charter, rows });
-  const writeOut = () => fs.writeFileSync(path.join(runDir, 'summary.json'), JSON.stringify(summary, null, 2));
+  Object.assign(summary, { report: P.html, pdf: P.pdf, folder: `test-runs/${runDay(runId)}`, messages });
+  const htmlFile = path.join(P.dayDir, P.html);
+  const writeOut = () => fs.writeFileSync(path.join(P.dayDir, P.json), JSON.stringify(summary, null, 2));
   writeOut();
-  fs.writeFileSync(path.join(runDir, 'index.html'), reportHtml(summary));
+  fs.writeFileSync(htmlFile, reportHtml(summary));
   try {
-    await printPdf(runDir);
+    await printPdf(htmlFile, path.join(P.dayDir, P.pdf));
   } catch (e) {
     summary.pdf = null;
     summary.pdf_message = `PDF not made: ${stripAnsi(e.message).split('\n')[0]}. Fix: npx playwright install chromium`;
-    fs.writeFileSync(path.join(runDir, 'index.html'), reportHtml(summary));
+    fs.writeFileSync(htmlFile, reportHtml(summary));
     writeOut();
   }
+  writeRunsIndex(root);
 
   // 5. Open the report in Chrome.
   if (opts.open !== false) {
-    const url = opts.reportUrl ? opts.reportUrl(runId) : pathToFileURL(path.join(runDir, 'index.html')).href;
-    openInChrome(url);
+    openInChrome(opts.reportUrl ? opts.reportUrl(runId, P.html) : pathToFileURL(htmlFile).href);
   }
 
-  // 6. Commit and push, so CI runs too. A failed push doesn't fail the run.
+  // 6. Commit and push, so CI (and GitHub Pages) run too. A failed push doesn't fail the run.
   tell({ step: 'push', message: 'Saving to GitHub' });
   if (opts.push === false) {
     summary.push_message = 'Not pushed: NO_PUSH=1 is set.';
@@ -439,10 +513,10 @@ export async function runAll(opts) {
   return summary;
 }
 
-function readPwRows(jsonFile, browser, runDir) {
+function readPwRows(jsonFile, browser, dayDir) {
   if (!fs.existsSync(jsonFile)) return [];
   try {
-    return rowsFromPlaywright(JSON.parse(fs.readFileSync(jsonFile, 'utf8')), browser, runDir);
+    return rowsFromPlaywright(JSON.parse(fs.readFileSync(jsonFile, 'utf8')), browser, dayDir);
   } catch {
     return [{ id: '?', title: `${browser}: the results file could not be read`, browser, status: 'blocked', error: jsonFile, screenshot: null }];
   }

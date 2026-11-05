@@ -4,11 +4,11 @@ Paste this whole file into your prompt, under **RULES:**. It tells the AI how in
 
 An integration test checks that **the API and the screen agree**: it uses both in one test and compares them.
 
-- Write Playwright tests in TypeScript. One file: `tests/integration/<feature>.integration.spec.ts` (`<feature>` is my card, for example `card-02`).
+- Write Playwright tests in TypeScript. One file per user story: `tests/integration/<story-id>.spec.ts` (for example `trn-02.spec.ts`).
 - Start the file like this:
   ```ts
-  import { test, expect } from '@playwright/test';
-  import { signIn, newMobile, messageUnder, api, AS_PROBE, ME } from '../../helpers/web';
+  import { test, expect, signIn, newMobile, messageUnder, api, AS_PROBE, ME } from '../../helpers/web';
+  (`test` and `expect` come from `helpers/web`, not from '@playwright/test': in a headed run each test then opens a tab in one browser window.)
   ```
 - Our helper does the rest. Never write the site address, the name-tag or the headers in a test.
   - `await signIn(page)` opens the site and signs in with my name-tag; you are then on **Home**. Call it in `test.beforeEach`. On a first visit the site shows a "Your name" dialog that blocks the page until it is filled in; `signIn` fills it in. Never `page.goto` a page without it.
@@ -27,7 +27,7 @@ An integration test checks that **the API and the screen agree**: it uses both i
 - Use field names exactly as in the example responses in my story (`taxpayer_id`, `full_name`, `created_by`, ...).
 - Reply with the file in one code block, with the file name on the line above it. Then at most 3 short notes.
 
-Example: one test from our project (`tests/integration/taxpayer.integration.spec.ts`):
+Example: one test from our project (`tests/integration/trn-01.spec.ts`):
 
 ```ts
 test('I1 · AC-1, AC-2 · create "Ana Dela Cruz" with the API, see it on the screen', async ({ page, request }) => {

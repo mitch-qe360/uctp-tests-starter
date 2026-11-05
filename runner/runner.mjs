@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { ROOT, ALL_BROWSERS, STAGING_HOST, loadEnvironment, newRunId, safeName, repoInfo, runAll } from './lib.mjs';
+import { ROOT, ALL_BROWSERS, STAGING_HOST, loadEnvironment, newRunId, safeName, repoInfo, runAll, closeHeldBrowsers, runDay, linkTo } from './lib.mjs';
 
 export const PORT = 7357;
 export const DEFAULT_ORIGINS = [
@@ -28,6 +28,16 @@ const RUN_ID_RE = /^\d{8}-\d{6}(-\d+)?$/;
 const list = v => String(v || '').split(',').map(s => s.trim()).filter(Boolean);
 
 // The 6-digit pairing code: made on the first start, kept in .runner-code (git-ignored).
+// A finished run's summary on disk: test-runs/<day>/*.json with this run_id.
+function findSummary(root, id) {
+  const day = path.join(root, 'test-runs', runDay(id));
+  if (!fs.existsSync(day)) return null;
+  for (const f of fs.readdirSync(day).filter(f => f.endsWith('.json'))) {
+    try { const s = JSON.parse(fs.readFileSync(path.join(day, f), 'utf8')); if (s.run_id === id) return s; } catch { /* skip */ }
+  }
+  return null;
+}
+
 export function pairingCode(root = ROOT) {
   const file = path.join(root, '.runner-code');
   try {
@@ -62,7 +72,7 @@ export function createRunner(opts = {}) {
 
   const start = opts.start || (job => runAll({
     ...job, headed: process.env.HEADED !== '0', push: process.env.NO_PUSH !== '1',
-    reportUrl: id => `http://127.0.0.1:${server.address().port}/report/${id}/index.html`,
+    reportUrl: (id, file) => `http://127.0.0.1:${server.address().port}/report/${id}/${linkTo(file)}`,
     onProgress: p => runs.set(job.runId, { ...p }),
   }));
 
@@ -96,7 +106,7 @@ export function createRunner(opts = {}) {
     if (!RUN_ID_RE.test(id || '') || !rest.length || rest.some(p => !p || p === '.' || p === '..' || /[\\/\0]/.test(p))) {
       return send(res, 400, { error: 'Bad report path.' }, origin);
     }
-    const runDir = path.join(root, 'test-runs', id);
+    const runDir = path.join(root, 'test-runs', runDay(id));     // the run's day folder
     const file = path.join(runDir, ...rest);
     if (!file.startsWith(runDir + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
       return send(res, 404, { error: 'Not found.' }, origin);
@@ -195,9 +205,8 @@ export function createRunner(opts = {}) {
       if (req.method === 'GET' && m) {
         const id = m[1];
         if (runs.has(id)) return send(res, 200, runs.get(id), allowed);
-        const file = RUN_ID_RE.test(id) && path.join(root, 'test-runs', id, 'summary.json');
-        if (file && fs.existsSync(file)) {
-          const summary = JSON.parse(fs.readFileSync(file, 'utf8'));
+        const summary = RUN_ID_RE.test(id) && findSummary(root, id);
+        if (summary) {
           return send(res, 200, { state: 'done', step: 'push', done: summary.results.length, total: summary.results.length, message: summary.push_message || '', summary }, allowed);
         }
         return send(res, 404, { error: 'No run with that id.' }, allowed);
@@ -223,6 +232,9 @@ export function createRunner(opts = {}) {
 // npm run runner
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const runner = createRunner();
+  const stop = async () => { await closeHeldBrowsers(); process.exit(0); };
+  process.on('SIGINT', stop);
+  process.on('SIGTERM', stop);
   runner.listen().then(port => {
     const info = repoInfo(ROOT);
     console.log('');
@@ -236,6 +248,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.log('  Keep this window open while you test. Stop it with Ctrl+C.');
     if (process.env.NO_PUSH === '1') console.log('  NO_PUSH=1: runs are not committed or pushed.');
     if (process.env.HEADED === '0') console.log('  HEADED=0: browsers run hidden.');
+    else console.log('  Each browser opens one window; every test is a new tab. Chrome stays open after a run (the next RUN closes it).');
     console.log('');
   }).catch(e => {
     if (e.code === 'EADDRINUSE') console.error(`Port ${PORT} is busy: the runner is probably already running in another window. Close that one first.`);

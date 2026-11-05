@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRunner } from './runner.mjs';
-import { ROOT, splitTitle, rowsFromPlaywright, rowsFromApiReports, buildSummary, charterIds, safeName, reportHtml, stripCredentials } from './lib.mjs';
+import { ROOT, splitTitle, rowsFromPlaywright, buildSummary, sutName, runPaths, writeRunsIndex, browserMissing, linkTo, charterIds, safeName, reportHtml, stripCredentials } from './lib.mjs';
 
 const ORIGIN = 'https://qe-360-academy-staging.aiqe.pro';
 const CODE = '123456';
@@ -143,11 +143,11 @@ test('/run checks base_url and browsers, sanitizes name, and answers 409 while b
 });
 
 test('/report serves files from the run folder only', () => withRunner(async ({ call, root }) => {
-  const dir = path.join(root, 'test-runs', '20261105-143000');
+  const dir = path.join(root, 'test-runs', '2026-11-05');
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, 'index.html'), '<h1>hi</h1>');
+  fs.writeFileSync(path.join(dir, 'Card 01 - 2026-11-05 143000.html'), '<h1>hi</h1>');
   fs.writeFileSync(path.join(root, 'secret.txt'), 'no');
-  const res = await call('GET', '/report/20261105-143000/index.html');
+  const res = await call('GET', `/report/20261105-143000/${encodeURIComponent('Card 01 - 2026-11-05 143000.html')}`);
   assert.equal(res.status, 200);
   assert.match(res.headers.get('content-type'), /text\/html/);
   assert.equal(await res.text(), '<h1>hi</h1>');
@@ -218,23 +218,13 @@ test('a Playwright run that broke before any test shows one blocked row', () => 
   assert.match(rows[0].error, /SyntaxError/);
 });
 
-test('plain-Node API reports map to rows', () => {
-  const rows = rowsFromApiReports([{ name: 'p', results: [
-    { id: 'A10', test: 'legacy', expected: '201', actual: '{"status":201}', result: 'PASS' },
-    { id: 'A11', test: 'legacy bad', expected: '201', actual: '{"status":500}', result: 'FAIL' },
-    { id: 'SETUP', test: 'setup', expected: '201', actual: '0', result: 'FAIL' },
-  ] }]);
-  assert.deepEqual(rows.map(r => [r.id, r.status]), [['A10', 'passed'], ['A11', 'failed'], ['?', 'blocked']]);
-  assert.equal(rows[0].title, 'A10 · legacy');
-});
-
 test('summary has the contract shape, counts and not_tested from the charter', () => {
   assert.deepEqual(charterIds(charter), ['A1', 'A2', 'W1', 'W2', 'W3', 'I1', 'I2', 'A10']);
   const rows = [...rowsFromPlaywright(apiReport, 'api', '/run'), ...rowsFromPlaywright(pwReport, 'chrome', '/run'),
-    ...rowsFromApiReports([{ results: [{ id: 'A10', test: 'legacy', result: 'PASS' }] }])];
+    { id: 'A10', title: 'A10 · legacy', browser: 'api', status: 'passed', error: null, screenshot: null }];
   const s = buildSummary({ runId: '20261105-143000', startedAt: 'a', finishedAt: 'b', baseUrl: 'https://x', browsers: ['chrome'], charter, rows });
   assert.deepEqual(Object.keys(s).filter(k => k !== 'not_tested'),
-    ['run_id', 'started_at', 'finished_at', 'base_url', 'browsers', 'story', 'counts', 'results', 'report', 'pdf', 'pushed', 'push_message']);
+    ['run_id', 'started_at', 'finished_at', 'base_url', 'browsers', 'story', 'counts', 'results', 'report', 'pdf', 'messages', 'pushed', 'push_message']);
   assert.equal(s.story, 'Card 99 · Story');
   assert.deepEqual(s.counts, { passed: 3, flaky: 1, failed: 1, blocked: 5, not_tested: 1 });
   assert.deepEqual(s.not_tested, ['I2']);
@@ -279,6 +269,57 @@ test('report links are relative, so it works from file:// and from the runner', 
   const html = reportHtml(s);
   const links = [...html.matchAll(/(?:href|src)="([^"]+)"/g)].map(m => m[1]);
   assert.deepEqual(links, ['report.pdf', 'artifacts/chrome/w1/test-failed-1.png']);
+  s.pdf = 'Card 01 - 2026-11-05 143000.pdf';
+  s.results[0].screenshot = 'Card 01 - 2026-11-05 143000/artifacts/chrome/x.png';
+  const links2 = [...reportHtml(s).matchAll(/(?:href|src)="([^"]+)"/g)].map(m => m[1]);
+  assert.deepEqual(links2, ['Card%2001%20-%202026-11-05%20143000.pdf', 'Card%2001%20-%202026-11-05%20143000/artifacts/chrome/x.png']);
   assert.match(html, /<th>Id<\/th><th>AC<\/th><th>Test<\/th><th>Browser<\/th><th>Result<\/th>/);
   assert.match(html, /<td>W1<\/td><td>AC-1<\/td><td>open the form<\/td>/);
+});
+
+test('file names: <SUT> - <day> <time>, in test-runs/<day>/', () => {
+  assert.equal(sutName({ root: { text: 'Card 01 · TRN-01 · Register a taxpayer' } }), 'Card 01 · TRN-01 · Register a taxpayer');
+  assert.equal(sutName({ root: { text: 'A/B: "C"?\nsecond line' } }), 'A-B- -C');
+  assert.equal(sutName(null), 'Tests');
+  assert.equal(sutName({ root: { text: '  ...  ' } }), 'Tests');
+  const p = runPaths('/r', '20261105-143000', 'Card 01');
+  assert.equal(p.dayDir, path.join('/r', 'test-runs', '2026-11-05'));
+  assert.equal(p.html, 'Card 01 - 2026-11-05 143000.html');
+  assert.equal(p.pdf, 'Card 01 - 2026-11-05 143000.pdf');
+  assert.equal(p.json, 'Card 01 - 2026-11-05 143000.json');
+  assert.equal(p.assetsDir, path.join('/r', 'test-runs', '2026-11-05', 'Card 01 - 2026-11-05 143000'));
+  assert.equal(linkTo('a b/c#d.png'), 'a%20b/c%23d.png');
+});
+
+test('test-runs/index.html lists runs newest first, linking each report', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'runs-'));
+  const put = (day, id, name) => {
+    fs.mkdirSync(path.join(root, 'test-runs', day), { recursive: true });
+    fs.writeFileSync(path.join(root, 'test-runs', day, `${name}.json`), JSON.stringify({ run_id: id, report: `${name}.html`,
+      counts: { passed: 1, flaky: 0, failed: 0, blocked: 0, not_tested: 0 } }));
+  };
+  put('2026-11-04', '20261104-090000', 'Card 01 - 2026-11-04 090000');
+  put('2026-11-05', '20261105-143000', 'Card 01 - 2026-11-05 143000');
+  writeRunsIndex(root);
+  const html = fs.readFileSync(path.join(root, 'test-runs', 'index.html'), 'utf8');
+  assert.ok(html.indexOf('2026-11-05') < html.indexOf('2026-11-04'), 'newest day first');
+  assert.match(html, /href="2026-11-05\/Card%2001%20-%202026-11-05%20143000\.html"/);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('browser check looks for the file only, and names the fix', async () => {
+  const none = () => false;
+  assert.equal(await browserMissing('firefox', { exists: none }), "Firefox isn't installed: run npx playwright install firefox");
+  assert.equal(await browserMissing('chrome', { exists: none, platform: 'darwin', env: {} }), "Google Chrome isn't installed: run npx playwright install chrome");
+  assert.equal(await browserMissing('chrome', { exists: p => p === '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', platform: 'darwin', env: {} }), null);
+  assert.equal(await browserMissing('firefox', { exists: () => true }), null);
+});
+
+test('a browser that is not installed: its tests count as not tested, with the message', () => {
+  const msg = "Firefox isn't installed: run npx playwright install firefox";
+  const s = buildSummary({ runId: 'r', startedAt: '', finishedAt: '', baseUrl: '', browsers: ['firefox'], charter: null,
+    rows: [{ id: 'W1', title: 'W1 · AC-1 · x', browser: 'firefox', status: 'not_tested', error: msg, screenshot: null }] });
+  assert.equal(s.counts.not_tested, 1);
+  s.messages = [msg];
+  assert.match(reportHtml(s), /Firefox isn&#39;t installed/);
 });

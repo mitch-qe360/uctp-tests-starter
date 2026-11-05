@@ -1,7 +1,6 @@
 // Card 01 · TRN-01 · Register a taxpayer · web tests (the same story, on the screen)
 // From charters/card-01-charter.json, nodes with status "UI journey": W1 to W9.
-import { test, expect } from '@playwright/test';
-import { signIn, newMobile, messageUnder } from '../../helpers/web';
+import { test, expect, signIn, newMobile, messageUnder } from '../../helpers/web';
 
 const NAME_MSG = "2-100 characters: letters, spaces, . - ' and Ñ only";
 const MOBILE_MSG = 'must be a PH mobile 09XXXXXXXXX or +639XXXXXXXXX';

@@ -2,11 +2,11 @@
 
 Paste this whole file into your prompt, under **RULES:**. It tells the AI how tests look in this project, so you don't have to.
 
-- Write Playwright tests in TypeScript. One file: `tests/web/<feature>.web.spec.ts` (`<feature>` is my card, for example `card-02`).
+- Write Playwright tests in TypeScript. One file per user story: `tests/web/<story-id>.spec.ts` (for example `trn-02.spec.ts`).
 - Start the file like this:
   ```ts
-  import { test, expect } from '@playwright/test';
-  import { signIn, newMobile, messageUnder } from '../../helpers/web';
+  import { test, expect, signIn, newMobile, messageUnder } from '../../helpers/web';
+  (`test` and `expect` come from `helpers/web`, not from '@playwright/test': in a headed run each test then opens a tab in one browser window.)
   ```
 - Our helper does the rest. Never write the site address or the name-tag in a test.
   - `await signIn(page)` opens the site and signs in with my name-tag; you are then on **Home**. Call it in `test.beforeEach`. On a first visit the site shows a "Your name" dialog that blocks the page until it is filled in; `signIn` fills it in. Never `page.goto` a page without it.
@@ -20,7 +20,7 @@ Paste this whole file into your prompt, under **RULES:**. It tells the AI how te
 - Never change an expected text to match what you think the screen shows. If one looks wrong, say so after the code.
 - Reply with the file in one code block, with the file name on the line above it. Then at most 3 short notes.
 
-Example: one test from our project (`tests/web/taxpayer.web.spec.ts`):
+Example: one test from our project (`tests/web/trn-01.spec.ts`):
 
 ```ts
 test('W8 · AC-8 · refuse the mobile 0917-123-4567 (dashes) on the screen', async ({ page }) => {

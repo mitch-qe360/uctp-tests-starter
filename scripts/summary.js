@@ -1,6 +1,6 @@
 // One small results file for the whole run: reports/summary.json.
-// It joins the API reports (reports/*.json), the web report and the integration report
-// (reports/web/results.json, reports/integration/results.json) into one row per test:
+// It joins the Playwright reports (reports/api, reports/web, reports/integration: results.json)
+// into one row per test:
 //   { id: "A4", kind: "api", test: "...", result: "PASS" | "FAIL" | "SKIPPED", why: "..." }
 // You give this file to the AI to update your charter (prompts/update-charter-prompt.md).
 const fs = require('fs');
@@ -9,18 +9,7 @@ const path = require('path');
 const dir = path.join(__dirname, '..', 'reports');
 const rows = [];
 
-// API reports, written by finish() in helpers/api-client.js
-for (const f of fs.existsSync(dir) ? fs.readdirSync(dir) : []) {
-  if (!f.endsWith('.json') || f === 'summary.json') continue;
-  let report;
-  try { report = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); } catch { continue; }
-  for (const r of report.results || []) {
-    rows.push({ id: r.id, kind: 'api', file: `tests/api/${report.name}.test.js`, test: r.test, result: r.result,
-      why: r.result === 'PASS' ? '' : `expected ${r.expected}; got ${String(r.actual).slice(0, 300)}` });
-  }
-}
-
-// Playwright JSON reports (web and integration)
+// Playwright JSON reports (api, web and integration)
 function walk(suite, file, kind) {
   for (const spec of suite.specs || []) {
     for (const t of spec.tests || []) {
@@ -33,7 +22,7 @@ function walk(suite, file, kind) {
   }
   for (const s of suite.suites || []) walk(s, s.file || file, kind);
 }
-for (const kind of ['web', 'integration']) {
+for (const kind of ['api', 'web', 'integration']) {
   const f = path.join(dir, kind, 'results.json');
   if (!fs.existsSync(f)) continue;
   const report = JSON.parse(fs.readFileSync(f, 'utf8'));

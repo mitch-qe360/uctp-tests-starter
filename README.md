@@ -13,24 +13,22 @@ Site under test: `https://city-treasurer-staging.aiqe.pro` (training copy, made-
 ```
 uctp-tests/
 ├── config/environment.js      the site and your name-tag, per environment (the only file you change)
-├── helpers/api-client.js      api(), check(), finish() and new test data, written once
+├── helpers/api.ts             api() and new test data, written once
 ├── helpers/web.ts             signIn(), messageUnder() and api() for web and integration tests, written once
 ├── tests/
 │   ├── api/                   API tests, split by type
-│   │   ├── taxpayer-positive.test.js
-│   │   ├── taxpayer-negative.test.js
-│   │   └── taxpayer-security.test.js
+│   │   └── trn-01.spec.ts                 API tests (Playwright, no browser), one file per story
 │   ├── web/
-│   │   └── taxpayer.web.spec.ts           web tests (Playwright) for the same story
+│   │   └── trn-01.spec.ts                 web tests (Playwright) for the same story
 │   └── integration/
-│       └── taxpayer.integration.spec.ts   the API and the screen agree
+│       └── trn-01.spec.ts                 the API and the screen agree
 ├── stories/                   the user stories and their acceptance criteria
 ├── charters/                  the test charters (JSON from Charter360)
 ├── prompts/                   your 4-part prompt, our project rules, the charter-update prompt, the review checklist
 ├── scripts/summary.js         joins all reports into reports/summary.json
 ├── scripts/doctor.mjs         npm run doctor: is this laptop ready?
 ├── runner/                    npm run runner (for Charter360's RUN) and npm run test:watch
-├── test-runs/                 one folder per run: index.html, summary.json, report.pdf
+├── test-runs/                 the reports: <date>/<story> - <date time>.html (.pdf, .json); index.html lists them
 ├── setup-mac.sh, setup-windows.ps1   install what's missing, before class
 ├── .claude/skills/qe/SKILL.md the QE skill your AI uses
 ├── reports/                   the results of each run (CI keeps them for you)
@@ -68,7 +66,7 @@ Your name-tag is in the top bar of the UCTP site: `You are: Ana-4821` means `Ana
 At work nobody adds a test straight to the main branch: you propose it, a teammate reviews it, CI runs it, then it is merged.
 
 1. Open the folder **`tests`** › **`api`** (or **`web`**, or **`integration`**). Click **Add file** (top right) › **Create new file**.
-2. Type the file name the AI gave you, for example `card-02-positive.test.js`. API files must end in `.test.js`, web files in `.web.spec.ts`, integration files in `.integration.spec.ts`.
+2. Type the file name the AI gave you: one file per story and type, for example `trn-02.spec.ts` in `tests/api`, `tests/web` or `tests/integration`. Files must end in `.spec.ts`.
 3. Paste the AI's code.
 4. Click **Commit changes...**. In the box, choose **Create a new branch for this commit and start a pull request**. Name the branch, for example `card-02-api`. Click **Propose changes**.
 5. On the next page click **Create pull request**.
@@ -104,9 +102,11 @@ If your laptop blocks installs, do it with your IT admin.
 - **From Charter360:** in your `uctp-tests` folder run `npm run runner` and keep that window open. It prints a 6-digit pairing code. In Charter360 open **Environment settings**, type the code, then press **RUN**.
 - **From the terminal (no Charter360):** `npm run test:watch`.
 
-Both do the same run: API tests once, then the web and integration tests in Chrome, then in Firefox (a failing test is re-run up to 3 times; a pass on a re-run shows as **Flaky**). The report opens in Chrome, and everything is saved in `test-runs/<date-time>/` (`index.html`, `summary.json`, `report.pdf`), committed and pushed so CI runs too.
+Both do the same run: API tests once, then the web and integration tests in Chrome, then in Firefox. Each browser opens **one window** and every test is a **new tab** in it. The Chrome window stays open after the run so you can click through the tabs and see what each test did; close it yourself (`npm run test:watch`: press Ctrl+C; the runner closes it at the next RUN) (a failing test is re-run up to 3 times; a pass on a re-run shows as **Flaky**). The report opens in Chrome, and everything is saved in `test-runs/<date>/` as `<story> - <date time>.html`, `.pdf` and `.json` (screenshots in the folder with the same name), committed and pushed so CI runs too.
 
 Writing web tests: the site shows a **"Your name"** dialog on the first visit that blocks every page; start each web or integration test with `await signIn(page)` (in `helpers/web.ts`, used in `test.beforeEach`), which fills it in.
+
+**Your reports as a web page (GitHub Pages).** Once, in your repo on GitHub: **Settings › Pages › Source: GitHub Actions**. After each pushed run, the list of runs is at `https://<your-username>.github.io/uctp-tests/` (newest first); each report links its PDF.
 
 Test ids: **A** = API, **W** = web, **I** = integration. Every test is named `<id> · <AC> · <what the test does, with its data>`, the same as its charter line, for example `A12 · AC-5 · refuse the full name "A" (1 letter)`.
 
