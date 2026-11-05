@@ -99,6 +99,16 @@ If your laptop blocks installs, do it with your IT admin.
    - **Windows** (PowerShell): `powershell -ExecutionPolicy Bypass -File .\setup-windows.ps1`
 3. It ends with `npm run doctor`. Every line must be ✅. Each ❌ line says how to fix it; fix it, then run `npm run doctor` again.
 
+## Charter360 with your own Claude plan (optional)
+
+If you have a Claude Pro or Max plan and Claude Code on this laptop, Charter360 › My AI › **Claude Code (my Claude plan)** can use it instead of an API key. It's off by default. Turn it on only for yourself:
+
+```
+CHARTER360_CLAUDE_CODE=1 npm run runner
+```
+
+It uses the Claude account signed in on this laptop, and only your browser (with your pairing code) can reach your runner. Never share your plan: each person uses their own. Turn off "Help improve Claude" in claude.ai › Settings › Privacy.
+
 ## Run your tests
 
 - **From Charter360:** in your `uctp-tests` folder run `npm run runner` and keep that window open. It prints a 6-digit pairing code. In Charter360 open **Environment settings**, type the code, then press **RUN**.

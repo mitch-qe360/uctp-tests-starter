@@ -152,7 +152,7 @@ export function createRunner(opts = {}) {
       if (req.method === 'GET' && p === '/status') {
         return send(res, 200, { ok: true, version: '1', paired, ...repoInfo(root), browsers: ALL_BROWSERS, busy,
           installed: paired ? await installedBrowsers() : undefined, installs: paired ? installs : undefined,
-          ai_providers: Object.keys(AI_PROVIDERS) }, allowed);
+          ai_providers: Object.keys(AI_PROVIDERS).filter(k => k !== 'claude-code' || process.env.CHARTER360_CLAUDE_CODE === '1') }, allowed);
       }
       if (req.method === 'GET' && p.startsWith('/report/')) return serveReport(res, p, allowed);
 

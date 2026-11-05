@@ -5,7 +5,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRunner, busyPortMessage } from './runner.mjs';
-import { askAi } from './ai.mjs';
+import { askAi, claudeCodeCommand } from './ai.mjs';
+import { EventEmitter } from 'node:events';
 import { ROOT, pagesUrl, onlyGrep, splitTitle, rowsFromPlaywright, buildSummary, sutName, runPaths, writeRunsIndex, browserMissing, linkTo, charterIds, safeName, reportHtml, stripCredentials } from './lib.mjs';
 
 const ORIGIN = 'https://qe-360-academy-staging.aiqe.pro';
@@ -462,5 +463,28 @@ test('/ai and /install need the pairing code; install reports its state in /stat
   await new Promise(r => setTimeout(r, 20));
   const st = await (await call('GET', '/status', { headers: good })).json();
   assert.equal(st.installs.webkit, 'done');
-  assert.deepEqual(st.ai_providers, ['gemini', 'anthropic', 'openai', 'kimi']);
+  assert.deepEqual(st.ai_providers.filter(p => p !== 'claude-code'), ['gemini', 'anthropic', 'openai', 'kimi']);
 }, null, { askAi: async b => ({ ok: true, text: `echo ${b.user}` }), install: async () => ({ ok: true }) }));
+
+
+test('claude-code is off unless CHARTER360_CLAUDE_CODE=1, runs isolated, and reads the JSON result', async () => {
+  const off = await askAi({ provider: 'claude-code', user: 'hi' }, { env: {} });
+  assert.equal(off.ok, false);
+  assert.match(off.error, /CHARTER360_CLAUDE_CODE=1/);
+  const cmd = claudeCodeCommand({ system: 'skill', model: 'sonnet' }, { HOME: '/h', PATH: '/bin', CLAUDE_BIN: '/x/claude', CLAUDECODE: '1', SECRET: 's' });
+  assert.equal(cmd.bin, '/x/claude');
+  assert.deepEqual(cmd.args.slice(0, 9), ['-p', '--output-format', 'json', '--strict-mcp-config', '--no-session-persistence', '--setting-sources', 'project', '--tools', '']);
+  assert.ok(cmd.args.includes('--model') && cmd.args.includes('sonnet'));
+  assert.deepEqual(Object.keys(cmd.env).sort(), ['HOME', 'PATH'], 'no CLAUDE* or other variables leak in');
+  let got = '';
+  const fakeSpawn = () => {
+    const c = new EventEmitter();
+    c.stdout = new EventEmitter(); c.stderr = new EventEmitter();
+    c.stdin = { end: t => { got = t; setTimeout(() => { c.stdout.emit('data', JSON.stringify({ result: 'charter', is_error: false })); c.emit('close', 0); }, 5); } };
+    c.kill = () => {};
+    return c;
+  };
+  const r = await askAi({ provider: 'claude-code', user: 'story', json: true }, { env: { CHARTER360_CLAUDE_CODE: '1', CLAUDE_BIN: '/x/claude' }, spawnImpl: fakeSpawn });
+  assert.deepEqual([r.ok, r.text], [true, 'charter']);
+  assert.match(got, /^story\n\nAnswer with JSON only\.$/);
+});
