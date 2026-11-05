@@ -7,7 +7,7 @@ import path from 'node:path';
 import { createRunner, busyPortMessage } from './runner.mjs';
 import { askAi, claudeCodeCommand } from './ai.mjs';
 import { EventEmitter } from 'node:events';
-import { ROOT, pagesUrl, onlyGrep, splitTitle, rowsFromPlaywright, buildSummary, sutName, runPaths, writeRunsIndex, browserMissing, linkTo, charterIds, safeName, reportHtml, stripCredentials } from './lib.mjs';
+import { ROOT, pagesUrl, onlyGrep, splitTitle, rowsFromPlaywright, buildSummary, sutName, storyName, runLabel, runPaths, writeRunsIndex, browserMissing, linkTo, charterIds, safeName, reportHtml, stripCredentials } from './lib.mjs';
 
 const ORIGIN = 'https://qe-360-academy-staging.aiqe.pro';
 const CODE = '123456';
@@ -294,6 +294,31 @@ test('file names: one folder per run, test-runs/<day>/<SUT> - <day> <time>/', ()
   assert.equal(linkTo('a b/c#d.png'), 'a%20b/c%23d.png');
 });
 
+test('run name: <SUT> - <story ID> <story name>, from the hints, the title or the charter', () => {
+  const uctp = (title, kids = []) => ({ title, root: { text: 'UCTP City Treasurer', children: kids } });
+  // From Charter360's hints (map title, then the story box's first line).
+  assert.equal(runLabel(uctp('x'), ['My map', '# Card 01 · TRN-01 · Register a taxpayer']), 'UCTP City Treasurer - TRN-01 Register a taxpayer');
+  // From the charter title, a top-level node or a Story node.
+  assert.equal(runLabel(uctp('TRN-02: Make a bill')), 'UCTP City Treasurer - TRN-02 Make a bill');
+  assert.equal(runLabel(uctp('t', [{ text: 'Story: US-12 — Pay at the counter\nAs a cashier…' }])), 'UCTP City Treasurer - US-12 Pay at the counter');
+  assert.equal(runLabel(uctp('t', [{ text: 'Page', children: [{ text: 'Story BIL-3 · Print a receipt' }] }])), 'UCTP City Treasurer - BIL-3 Print a receipt');
+  // Only an ID: the ID alone.
+  assert.equal(storyName(uctp('TRN-07')), 'TRN-07');
+  // Not acceptance criteria, UTF-8, or ids inside test lines deeper down.
+  assert.equal(storyName(uctp('t', [{ text: 'Page', children: [{ text: 'A1 · AC-1 · save as UTF-8 then TRN-09 x' }] }])), 't');
+  assert.equal(storyName({ title: 'AC-1 and UTF-8', root: { text: 'S' } }), 'AC-1 and UTF-8');
+  // No ID: the charter title, unless it is the SUT itself.
+  assert.equal(runLabel({ title: 'Test US1', root: { text: 'UCTP' } }), 'UCTP - Test US1');
+  assert.equal(runLabel({ title: 'Test US1', root: { text: 'Test US1' } }), 'Test US1');
+  // The SUT line already names the story (Card 01 style root): not twice.
+  assert.equal(runLabel({ title: 'Card 01 test charter', root: { text: 'Card 01 · TRN-01 · Register a taxpayer' } }), 'Card 01 · TRN-01 · Register a taxpayer');
+  assert.equal(runLabel(null), 'Tests');
+  // Unsafe file-name characters go.
+  assert.equal(runLabel(uctp('x'), ['TRN-01 · A/B: "c"?']), 'UCTP City Treasurer - TRN-01 A-B- -c');
+  const p = runPaths('/r', '20261105-143000', runLabel(uctp('x'), ['TRN-01 · Register a taxpayer']));
+  assert.equal(p.html, 'UCTP City Treasurer - TRN-01 Register a taxpayer - 2026-11-05 143000.html');
+});
+
 test('test-runs/index.html lists runs newest first, linking each report', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'runs-'));
   const put = (day, id, name) => {
@@ -411,8 +436,12 @@ test('files saved with a charter: RUN gets only those, /tests lists ids and bare
     ['tests/api/trn-01.chatgpt.spec.ts', ['A1', 'A2'], true], ['tests/web/trn-01.chatgpt.spec.ts', ['W1'], false]]);
   res = await call('GET', '/tests', { headers: good });
   assert.equal((await res.json()).files.length, 3, 'no charter: every file');
-  res = await call('POST', '/run', { headers: good, body: { name: 'Test US1', name_tag: 'Mitch-6973', browsers: ['chrome'] } });
+  res = await call('POST', '/run', { headers: good, body: { name: 'x', story: 7, browsers: ['chrome'] } });
+  assert.equal(res.status, 400, 'story must be text');
+  res = await call('POST', '/run', { headers: good, body: { name: 'Test US1', name_tag: 'Mitch-6973', browsers: ['chrome'],
+    story: 'Test US1\n\n  # Card 01 · TRN-01 · Register a taxpayer  \n' } });
   assert.equal(res.status, 200);
+  assert.deepEqual(jobs[0].story, ['Test US1', '# Card 01 · TRN-01 · Register a taxpayer']);
   assert.deepEqual(jobs[0].files, ['tests/api/trn-01.chatgpt.spec.ts', 'tests/web/trn-01.chatgpt.spec.ts']);
   assert.equal(jobs[0].nameTag, 'Mitch-6973');
   for (const bad of ['Ana-4821', '<your name-tag>', 'a']) {

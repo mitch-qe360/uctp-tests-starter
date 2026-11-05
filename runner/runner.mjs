@@ -217,9 +217,13 @@ export function createRunner(opts = {}) {
         if (body.name_tag !== undefined && (typeof body.name_tag !== 'string' || !/^[A-Za-z0-9._-]{2,40}$/.test(body.name_tag) || /^Ana-4821$/.test(body.name_tag))) {
           return send(res, 400, { error: 'name_tag must be your own name-tag from the UCTP top bar, like "Mitch-6973".' }, allowed);
         }
+        if (body.story !== undefined && (typeof body.story !== 'string' || body.story.length > 2000)) {
+          return send(res, 400, { error: 'story must be text, 2000 characters at most.' }, allowed);
+        }
+        const story = typeof body.story === 'string' ? body.story.split('\n').map(s => s.trim()).filter(Boolean).slice(0, 5) : [];
         const job = { runId, charter: body.charter && typeof body.charter === 'object' ? body.charter : null,
           name: safeName(body.name), baseUrl: base.origin, browsers, only, headed: body.headed !== false, control: makeControl(),
-          nameTag: body.name_tag || null, files: charterFiles(root, body.name) };
+          nameTag: body.name_tag || null, files: charterFiles(root, body.name), story };
         busy = true;
         current = job;
         runs.set(runId, { state: 'running', step: 'saving', done: 0, total: 0, message: 'Starting' });
