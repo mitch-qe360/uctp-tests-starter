@@ -15,7 +15,7 @@ An integration test checks that **the API and the screen agree**: it uses both i
   - `await api(request, method, path, body)` calls the API as me and returns `{ status, body }`. Add `AS_PROBE` as the 5th argument to call it as another user. Get `request` from the test: `async ({ page, request }) => { ... }`.
   - `messageUnder(page, '<field label>')` is the message under that field on the screen. Use the field's whole label, exactly as the charter writes it (for example `Mobile (09XXXXXXXXX)`).
   - `newMobile()` makes a new mobile on every run: `09` + 9 digits. For a `+639` mobile: `'+639' + newMobile().slice(2)`. `ME` is my name-tag (to compare with `created_by`).
-- One `test(...)` per charter node with the status "Integration", named with the node's id and label: `test('I1 · + · AC-1, AC-2 · made by the API, shown on the screen', ...)`.
+- One `test(...)` per charter node with the status "Integration", named `<id> · <AC> · <what the test does, with its data>`, the same as the charter line: `test('I1 · AC-1, AC-2 · create "Ana Dela Cruz" with the API, see it on the screen', ...)`.
 - Every test uses **both** sides:
   - made by the API › check it on the screen, or
   - made on the screen › check it with the API, or
@@ -30,7 +30,7 @@ An integration test checks that **the API and the screen agree**: it uses both i
 Example: one test from our project (`tests/integration/taxpayer.integration.spec.ts`):
 
 ```ts
-test('I1 · + · AC-1, AC-2 · made by the API, shown on the screen', async ({ page, request }) => {
+test('I1 · AC-1, AC-2 · create "Ana Dela Cruz" with the API, see it on the screen', async ({ page, request }) => {
   const mobile = newMobile();
   const made = await api(request, 'POST', '/api/v1/training/taxpayers',
     { full_name: 'Ana Dela Cruz', mobile, email: 'rosa@example.com' });

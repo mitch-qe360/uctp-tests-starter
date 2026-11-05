@@ -94,7 +94,7 @@
       "children": [
        {
         "id": "n2",
-        "text": "W1 · Core + · <what you see when it opens>\nSteps: Home › button \"…\" (say button or link)\n→ On screen: <exact heading, labels, buttons>",
+        "text": "W1 · AC-n · <open the form: what you see, exact texts>\nSteps: Home › button \"…\" (say button or link)\n→ On screen: <exact heading, labels, buttons>",
         "note": "",
         "collapsed": false,
         "statusId": "st_ui",
@@ -141,7 +141,7 @@
       "children": [
        {
         "id": "n7",
-        "text": "A1 · Core + · <the main result>\nPOST /api/… {<body>}\n→ 201 <the fields you check>",
+        "text": "A1 · AC-n · <create … using <test data>>\nPOST /api/… {<body>}\n→ 201 <the fields you check>",
         "note": "",
         "collapsed": false,
         "statusId": "st_api",
@@ -150,7 +150,7 @@
        },
        {
         "id": "n8",
-        "text": "W3 · Core + · <the main result, on the screen>\nSteps: …\n→ On screen: <exact result text>",
+        "text": "W3 · AC-n · <create … on the screen using <test data>>\nSteps: …\n→ On screen: <exact result text>",
         "note": "",
         "collapsed": false,
         "statusId": "st_ui",
@@ -171,7 +171,7 @@
     "children": [
      {
       "id": "n11",
-      "text": "T? · Core + · <read it back>\nGET /api/…\n→ 200 <fields>",
+      "text": "A2 · AC-n · <read back the … from A1>\nGET /api/…\n→ 200 <fields>",
       "note": "",
       "collapsed": false,
       "statusId": "st_api",
@@ -189,7 +189,7 @@
      },
      {
       "id": "n13",
-      "text": "W4 · Core + · <the row in the list>\nSteps: top bar link \"…\"\n→ On screen: row <exact texts>",
+      "text": "W4 · AC-n · <see the new … in the list>\nSteps: top bar link \"…\"\n→ On screen: row <exact texts>",
       "note": "",
       "collapsed": false,
       "statusId": "st_ui",
@@ -208,7 +208,7 @@
     "children": [
      {
       "id": "sInt1",
-      "text": "I1 · + · <made by the API, shown on the screen>\n<API call> › screen: top bar link \"…\"\n→ <what the screen shows, the same as the API>",
+      "text": "I1 · AC-n · <create … with the API, see it on the screen>\n<API call> › screen: top bar link \"…\"\n→ <what the screen shows, the same as the API>",
       "note": "",
       "collapsed": false,
       "statusId": "st_int",
@@ -217,7 +217,7 @@
      },
      {
       "id": "sInt2",
-      "text": "I2 · − · <the same broken input on both sides>\nsend it to the API, then type it on the screen\n→ the text under the field = the API's message, word for word",
+      "text": "I2 · AC-n · <show the same message on the API and the screen for <broken input>>\nsend it to the API, then type it on the screen\n→ the text under the field = the API's message, word for word",
       "note": "",
       "collapsed": false,
       "statusId": "st_int",

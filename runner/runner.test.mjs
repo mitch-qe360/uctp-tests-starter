@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRunner } from './runner.mjs';
-import { ROOT, rowsFromPlaywright, rowsFromApiReports, buildSummary, charterIds, safeName, reportHtml, stripCredentials } from './lib.mjs';
+import { ROOT, splitTitle, rowsFromPlaywright, rowsFromApiReports, buildSummary, charterIds, safeName, reportHtml, stripCredentials } from './lib.mjs';
 
 const ORIGIN = 'https://qe-360-academy-staging.aiqe.pro';
 const CODE = '123456';
@@ -263,4 +263,22 @@ test('safeName keeps only A-Z a-z 0-9 . _ -', () => {
 test('remote URLs lose their credentials', () => {
   assert.equal(stripCredentials('https://user:ghp_secret@github.com/a/b.git'), 'https://github.com/a/b.git');
   assert.equal(stripCredentials('git@github.com:a/b.git'), 'git@github.com:a/b.git');
+});
+
+test('titles split into id, AC and test; old "+ ·" style too', () => {
+  assert.deepEqual(splitTitle('A12 · AC-5 · refuse the full name "A" (1 letter)'), { ac: 'AC-5', test: 'refuse the full name "A" (1 letter)' });
+  assert.deepEqual(splitTitle('I1 · AC-1, AC-2 · create it with the API'), { ac: 'AC-1, AC-2', test: 'create it with the API' });
+  assert.deepEqual(splitTitle('W8 · − · AC-8 · dashes'), { ac: 'AC-8', test: 'dashes' });
+  assert.deepEqual(splitTitle('W1 · + · the form opens empty'), { ac: '', test: 'the form opens empty' });
+  assert.deepEqual(splitTitle('no id here'), { ac: '', test: 'no id here' });
+});
+
+test('report links are relative, so it works from file:// and from the runner', () => {
+  const s = buildSummary({ runId: 'r', startedAt: '', finishedAt: '', baseUrl: 'https://x', browsers: ['chrome'], charter: null,
+    rows: [{ id: 'W1', title: 'W1 · AC-1 · open the form', browser: 'chrome', status: 'failed', error: 'e', screenshot: 'artifacts/chrome/w1/test-failed-1.png' }] });
+  const html = reportHtml(s);
+  const links = [...html.matchAll(/(?:href|src)="([^"]+)"/g)].map(m => m[1]);
+  assert.deepEqual(links, ['report.pdf', 'artifacts/chrome/w1/test-failed-1.png']);
+  assert.match(html, /<th>Id<\/th><th>AC<\/th><th>Test<\/th><th>Browser<\/th><th>Result<\/th>/);
+  assert.match(html, /<td>W1<\/td><td>AC-1<\/td><td>open the form<\/td>/);
 });

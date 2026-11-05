@@ -15,7 +15,7 @@ test.describe('TRN-01 Register a taxpayer (web)', () => {
     await expect(page.getByRole('heading', { name: '1 — Create a taxpayer' })).toBeVisible();
   });
 
-  test('W1 · + · the form opens empty', async ({ page }) => {
+  test('W1 · AC-1 · open the Create a taxpayer form: all boxes empty, no result box', async ({ page }) => {
     await expect(page.getByLabel('Full name', { exact: true })).toHaveValue('');
     await expect(page.getByLabel('Mobile (09XXXXXXXXX)')).toHaveValue('');
     await expect(page.getByLabel('Email (optional)')).toHaveValue('');
@@ -23,7 +23,7 @@ test.describe('TRN-01 Register a taxpayer (web)', () => {
     await expect(page.getByText('created — mobile')).toBeHidden();      // no result box
   });
 
-  test('W2 · + · AC-1 · create a taxpayer, on the screen', async ({ page }) => {
+  test('W2 · AC-1 · create a taxpayer on the screen using "Ana Dela Cruz" and a new mobile', async ({ page }) => {
     const mobile = newMobile();
     await page.getByLabel('Full name', { exact: true }).fill('Ana Dela Cruz');
     await page.getByLabel('Mobile (09XXXXXXXXX)').fill(mobile);
@@ -31,7 +31,7 @@ test.describe('TRN-01 Register a taxpayer (web)', () => {
     await expect(page.getByText('created — mobile')).toContainText(`Ana Dela Cruz created — mobile ${mobile}.`);
   });
 
-  test('W3 · + · AC-2 · the row in My data', async ({ page }) => {
+  test('W3 · AC-2 · see the new taxpayer "Ana Dela Cruz" in My data', async ({ page }) => {
     const mobile = newMobile();
     await page.getByLabel('Full name', { exact: true }).fill('Ana Dela Cruz');
     await page.getByLabel('Mobile (09XXXXXXXXX)').fill(mobile);
@@ -43,7 +43,7 @@ test.describe('TRN-01 Register a taxpayer (web)', () => {
     await expect(row.getByRole('cell')).toHaveText(['Ana Dela Cruz', mobile, '—']);
   });
 
-  test('W4 · + · AC-3 · spaces removed, on the screen', async ({ page }) => {
+  test('W4 · AC-3 · create a taxpayer using "  Rosa Web  ": shown as "Rosa Web"', async ({ page }) => {
     const mobile = newMobile();
     await page.getByLabel('Full name', { exact: true }).fill('  Rosa Web  ');
     await page.getByLabel('Mobile (09XXXXXXXXX)').fill(mobile);
@@ -54,7 +54,7 @@ test.describe('TRN-01 Register a taxpayer (web)', () => {
     await expect(page.getByRole('row', { name: new RegExp(mobile) }).getByRole('cell').first()).toHaveText('Rosa Web');
   });
 
-  test('W5 · − · AC-4 · the same mobile twice, on the screen', async ({ page }) => {
+  test('W5 · AC-4 · refuse the same mobile twice on the screen ("Ben Dela Cruz" after "Ana Dela Cruz")', async ({ page }) => {
     const mobile = newMobile();
     await page.getByLabel('Full name', { exact: true }).fill('Ana Dela Cruz');
     await page.getByLabel('Mobile (09XXXXXXXXX)').fill(mobile);
@@ -68,7 +68,7 @@ test.describe('TRN-01 Register a taxpayer (web)', () => {
     await expect(messageUnder(page, 'Mobile (09XXXXXXXXX)')).toHaveText(DUP_MSG);
   });
 
-  test('W6 · − · AC-5 · 1 letter, on the screen', async ({ page }) => {
+  test('W6 · AC-5 · refuse the full name "A" (1 letter) on the screen', async ({ page }) => {
     await page.getByLabel('Full name', { exact: true }).fill('A');
     await page.getByLabel('Mobile (09XXXXXXXXX)').fill(newMobile());
     await page.getByRole('button', { name: 'Create taxpayer' }).click();
@@ -76,7 +76,7 @@ test.describe('TRN-01 Register a taxpayer (web)', () => {
     await expect(page.getByText('created — mobile')).toBeHidden();
   });
 
-  test('W7 · − · AC-6 · no dot after @, on the screen', async ({ page }) => {
+  test('W7 · AC-6 · refuse the email "rosa@examplecom" (no dot after @) on the screen', async ({ page }) => {
     await page.getByLabel('Full name', { exact: true }).fill('Ana Dela Cruz');
     await page.getByLabel('Mobile (09XXXXXXXXX)').fill(newMobile());
     await page.getByLabel('Email (optional)').fill('rosa@examplecom');
@@ -85,7 +85,7 @@ test.describe('TRN-01 Register a taxpayer (web)', () => {
     await expect(page.getByText('created — mobile')).toBeHidden();
   });
 
-  test('W8 · − · AC-8 · dashes, on the screen', async ({ page }) => {
+  test('W8 · AC-8 · refuse the mobile 0917-123-4567 (dashes) on the screen', async ({ page }) => {
     await page.getByLabel('Full name', { exact: true }).fill('Ana Dela Cruz');
     await page.getByLabel('Mobile (09XXXXXXXXX)').fill('0917-123-4567');
     await page.getByRole('button', { name: 'Create taxpayer' }).click();
@@ -93,7 +93,7 @@ test.describe('TRN-01 Register a taxpayer (web)', () => {
     await expect(page.getByText('created — mobile')).toBeHidden();
   });
 
-  test('W9 · − · AC-7 · another name-tag sees nothing', async ({ page }) => {
+  test('W9 · AC-7 · show nothing to another name-tag ("Probe") in My data', async ({ page }) => {
     const nav = page.getByRole('navigation', { name: 'Main' });
     await nav.getByRole('link', { name: 'Change' }).click();
     const dialog = page.getByRole('dialog', { name: 'Your name' });

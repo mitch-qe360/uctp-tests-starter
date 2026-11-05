@@ -54,6 +54,14 @@ export function charterIds(charter) {
   return ids;
 }
 
+// "A12 · AC-5 · refuse the full name "A"" -> { ac: "AC-5", test: "refuse the full name "A"" }
+export function splitTitle(title) {
+  let rest = String(title || '').trim().replace(/^[AWI]\d+(?!\d)\s*(·|:|-)?\s*/, '');
+  rest = rest.replace(/^[+−-]\s*·\s*/, '');                       // old style "+ ·" / "− ·"
+  const m = /^(AC-\d+(?:\s*,\s*AC-\d+)*)\s*·\s*/.exec(rest);
+  return m ? { ac: m[1].replace(/\s*,\s*/g, ', '), test: rest.slice(m[0].length) } : { ac: '', test: rest };
+}
+
 export function charterStory(charter) {
   if (!charter || typeof charter !== 'object') return '';
   return String(charter.root?.text || charter.title || '');
@@ -167,13 +175,19 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 export function reportHtml(summary) {
   const c = summary.counts;
   const label = { passed: 'Passed', flaky: 'Flaky', failed: 'Failed', blocked: 'Blocked', not_tested: 'Not tested' };
-  const rows = [...summary.results, ...summary.not_tested.map(id => ({ id, title: '(no test ran for this charter line)', browser: '-', status: 'not_tested' }))];
+  const order = r => {
+    const b = ['api', 'chrome', 'firefox'].indexOf(r.browser);
+    const m = /^([AWI])(\d+)/.exec(r.id) || [];
+    return [b < 0 ? 9 : b, m[1] ? 'AWI'.indexOf(m[1]) : 9, m[2] ? Number(m[2]) : 1e9];
+  };
+  const byOrder = (x, y) => { const a = order(x), b = order(y); return a[0] - b[0] || a[1] - b[1] || a[2] - b[2]; };
+  const rows = [...[...summary.results].sort(byOrder), ...summary.not_tested.map(id => ({ id, title: `${id} · (no test ran for this charter line)`, browser: '-', status: 'not_tested' }))];
   const body = rows.map((r, i) => {
     const hasDetail = r.status !== 'passed' && r.status !== 'not_tested' && (r.error || r.screenshot);
     const main = `<tr class="row ${r.status}${hasDetail ? ' click' : ''}" data-i="${i}"${hasDetail ? ' tabindex="0"' : ''}>
-<td>${esc(r.id)}</td><td>${esc(r.title)}</td><td>${esc(r.browser)}</td><td><span class="pill ${r.status}">${label[r.status] || esc(r.status)}</span></td></tr>`;
+<td>${esc(r.id)}</td><td>${esc(splitTitle(r.title).ac)}</td><td>${esc(splitTitle(r.title).test)}</td><td>${esc(r.browser)}</td><td><span class="pill ${r.status}">${label[r.status] || esc(r.status)}</span></td></tr>`;
     if (!hasDetail) return main;
-    return main + `<tr class="detail" id="d${i}"><td colspan="4">${r.error ? `<pre>${esc(r.error)}</pre>` : ''}${r.screenshot ? `<img src="${esc(r.screenshot)}" alt="Screenshot of ${esc(r.id)} in ${esc(r.browser)}">` : ''}</td></tr>`;
+    return main + `<tr class="detail" id="d${i}"><td colspan="5">${r.error ? `<pre>${esc(r.error)}</pre>` : ''}${r.screenshot ? `<img src="${esc(r.screenshot)}" alt="Screenshot of ${esc(r.id)} in ${esc(r.browser)}">` : ''}</td></tr>`;
   }).join('\n');
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -201,8 +215,8 @@ img{max-width:100%;border:1px solid var(--line)}
 <p class="meta">${esc(summary.base_url)} · browsers: ${esc((summary.browsers || []).join(', '))} · ${esc(summary.started_at)} to ${esc(summary.finished_at)}</p>
 ${summary.story ? `<div class="story">${esc(summary.story)}</div>` : ''}
 <div class="counts">${Object.keys(label).map(k => `<div class="count"><b>${c[k] || 0}</b>${label[k]}</div>`).join('')}</div>
-<p class="pdf"><a href="${esc(summary.pdf || 'report.pdf')}">Open report.pdf</a> <span class="hint">· Click a red or amber row to see why.</span></p>
-<table><thead><tr><th>Id</th><th>Title</th><th>Browser</th><th>Result</th></tr></thead><tbody>
+<p class="pdf">${summary.pdf ? '<a href="report.pdf">Open report.pdf</a>' : esc(summary.pdf_message || '')} <span class="hint">· Click a red or amber row to see why.</span></p>
+<table><thead><tr><th>Id</th><th>AC</th><th>Test</th><th>Browser</th><th>Result</th></tr></thead><tbody>
 ${body}
 </tbody></table>
 <script>

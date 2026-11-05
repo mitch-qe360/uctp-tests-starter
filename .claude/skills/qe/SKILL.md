@@ -20,8 +20,8 @@ Write an indented tree, two spaces per level:
         Element validations: <field> - type, required, default, min/max, allowed values, exact message
         Functional validations: <rule, limit or sum>
         Steps: <short numbered steps>
-        A1 <Heuristic> + : <validation>
-        W1 <Heuristic> - : <validation>
+        A1 · <Heuristic> + : <what it does, with its data> -> <exact result>
+        W1 · <Heuristic> - : <what it does, with its data> -> <exact result>
 ```
 
 - Start every test line with its id: **A** = API test, **W** = web test (what the user sees), **I** = integration test (the screen and the API must agree). Number each kind from 1: A1, A2 …, W1 …, I1 ….
@@ -63,7 +63,7 @@ Use the ones that fit the story. Name one on each test line.
 
 1. The charter tree.
 2. One code block per Playwright test file. Its first line is `// file: tests/<api|web|integration>/<name>.spec.ts`.
-   - Each test title starts with its id: `test('A1 …')`.
+   - Name each test `<id> · <AC> · <what it does, with its data>`, for example `test('A1 · AC-1 · create a taxpayer using "Ana Dela Cruz" and mobile 09171234567')` or `test('A12 · AC-5 · refuse the full name "A" (1 letter)')`.
    - The base URL comes from the Playwright config, never from the test.
    - Make your own test data, unique on every run (follow the system notes).
    - Assert the exact status code, field and message from the charter.

@@ -13,26 +13,26 @@ const URL = '/api/v1/training/taxpayers';
   }
   const id = setup.body.taxpayer_id;
 
-  // A31 · − · AC-7 · another user asks for my taxpayer
+  // A31 · AC-7 · hide my taxpayer from another user (X-User-ID <me>-probe gets 404)
   const t31 = await api('GET', `${URL}/${id}`, undefined, AS_PROBE);
-  check('A31', 'AC-7 · another user asks for my taxpayer', '404 {"detail":"Not Found"}',
+  check('A31', 'AC-7 · hide my taxpayer from another user (X-User-ID <me>-probe gets 404)', '404 {"detail":"Not Found"}',
     t31, t31.status === 404 && t31.body?.detail === 'Not Found');
 
-  // A32 · − · AC-7 · another user's list
+  // A32 · AC-7 · leave my taxpayer out of another user's list (X-User-ID <me>-probe)
   const t32 = await api('GET', URL, undefined, AS_PROBE);
   const leaked = Array.isArray(t32.body) && t32.body.some(r => r.taxpayer_id === id);
-  check('A32', "AC-7 · another user's list", '200, and my taxpayer_id is not in it',
+  check('A32', 'AC-7 · leave my taxpayer out of another user\'s list (X-User-ID <me>-probe)', '200, and my taxpayer_id is not in it',
     { status: t32.status, rows: Array.isArray(t32.body) ? t32.body.length : t32.body, leaked },
     t32.status === 200 && Array.isArray(t32.body) && !leaked);
 
-  // A33 · − · AC-7 · my name-tag in other letter case is another user
+  // A33 · AC-7 · treat my name-tag in other letter case as another user (404)
   const t33 = await api('GET', `${URL}/${id}`, undefined, AS_OTHER_CASE);
-  check('A33', 'AC-7 · my name-tag in other letter case is another user', '404 {"detail":"Not Found"}',
+  check('A33', 'AC-7 · treat my name-tag in other letter case as another user (404)', '404 {"detail":"Not Found"}',
     t33, t33.status === 404 && t33.body?.detail === 'Not Found');
 
-  // A34 · − · no X-User-ID header
+  // A34 · AC-7 · refuse a request with no X-User-ID header (422)
   const t34 = await api('GET', `${URL}/${id}`, undefined, NO_USER);
-  check('A34', 'no X-User-ID header', '422 {"detail":{"X-User-ID":"required header"}}',
+  check('A34', 'AC-7 · refuse a request with no X-User-ID header (422)', '422 {"detail":{"X-User-ID":"required header"}}',
     t34, t34.status === 422 && t34.body?.detail?.['X-User-ID'] === 'required header');
 
   finish('taxpayer-security');

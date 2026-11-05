@@ -26,10 +26,10 @@ Paste this whole file into your prompt, under **RULES:**. It tells the AI how te
 Example: one test from our project (`tests/api/taxpayer-positive.test.js`):
 
 ```js
-// A1 · + · AC-1 · create a taxpayer
+// A1 · AC-1 · create a taxpayer using "Ana Dela Cruz" and a new mobile, no email
 const t1 = await api('POST', '/api/v1/training/taxpayers', { full_name: 'Ana Dela Cruz', mobile });
 const b1 = t1.body || {};
-check('A1', 'AC-1 · create a taxpayer', `201, full_name "Ana Dela Cruz", mobile ${mobile}, email null, has taxpayer_id and created_at`,
+check('A1', 'AC-1 · create a taxpayer using "Ana Dela Cruz" and a new mobile, no email', `201, full_name "Ana Dela Cruz", mobile ${mobile}, email null, has taxpayer_id and created_at`,
   t1, t1.status === 201 && b1.full_name === 'Ana Dela Cruz' && b1.mobile === mobile && b1.email === null
     && !!b1.taxpayer_id && !!b1.created_at);
 ```

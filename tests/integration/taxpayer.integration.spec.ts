@@ -18,7 +18,7 @@ test.describe('TRN-01 Register a taxpayer (integration: API and screen)', () => 
     await expect(page.getByRole('heading', { name: '1 — Create a taxpayer' })).toBeVisible();
   }
 
-  test('I1 · + · AC-1, AC-2 · made by the API, shown on the screen', async ({ page, request }) => {
+  test('I1 · AC-1, AC-2 · create "Ana Dela Cruz" with the API, see it on the screen', async ({ page, request }) => {
     const mobile = newMobile();
     const made = await api(request, 'POST', URL, { full_name: 'Ana Dela Cruz', mobile, email: 'rosa@example.com' });
     expect(made.status, JSON.stringify(made.body)).toBe(201);
@@ -28,7 +28,7 @@ test.describe('TRN-01 Register a taxpayer (integration: API and screen)', () => 
     await expect(row.getByRole('cell')).toHaveText(['Ana Dela Cruz', mobile, 'rosa@example.com']);
   });
 
-  test('I2 · + · AC-1, AC-3 · made on the screen, stored by the API', async ({ page, request }) => {
+  test('I2 · AC-1, AC-3 · create "  Rosa Web  " on the screen, read "Rosa Web" from the API', async ({ page, request }) => {
     const mobile = newMobile();
     await openForm(page);
     await page.getByLabel('Full name', { exact: true }).fill('  Rosa Web  ');
@@ -50,7 +50,7 @@ test.describe('TRN-01 Register a taxpayer (integration: API and screen)', () => 
     { what: 'email "rosa@examplecom"', field: 'email', label: 'Email (optional)', input: { email: 'rosa@examplecom' } },
   ];
   for (const c of cases) {
-    test(`I3 · − · AC-5, AC-6, AC-8 · the same message on both sides: ${c.what}`, async ({ page, request }) => {
+    test(`I3 · AC-5, AC-6, AC-8 · show the same message on the API and the screen for ${c.what}`, async ({ page, request }) => {
       const body = { full_name: 'Ana Dela Cruz', mobile: newMobile(), ...c.input };
       const fromApi = await api(request, 'POST', URL, body);
       expect(fromApi.status).toBe(422);
@@ -66,7 +66,7 @@ test.describe('TRN-01 Register a taxpayer (integration: API and screen)', () => 
     });
   }
 
-  test('I4 · + · AC-5, AC-8 · what the API accepts, the screen accepts', async ({ page }) => {
+  test('I4 · AC-5, AC-8 · accept on the screen what the API accepts ("Ñoño O\'Brien-Cruz Jr.", +639 mobile)', async ({ page }) => {
     const nine = newMobile().slice(2);
     await openForm(page);
     await page.getByLabel('Full name', { exact: true }).fill("Ñoño O'Brien-Cruz Jr.");
@@ -75,7 +75,7 @@ test.describe('TRN-01 Register a taxpayer (integration: API and screen)', () => 
     await expect(page.getByText('created — mobile')).toContainText(`Ñoño O'Brien-Cruz Jr. created — mobile 09${nine}.`);
   });
 
-  test('I5 · − · AC-4 · a mobile the API registered is refused on the screen', async ({ page, request }) => {
+  test('I5 · AC-4 · refuse on the screen a mobile the API registered', async ({ page, request }) => {
     const mobile = newMobile();
     const made = await api(request, 'POST', URL, { full_name: 'Ana Dela Cruz', mobile });
     expect(made.status, JSON.stringify(made.body)).toBe(201);
@@ -87,7 +87,7 @@ test.describe('TRN-01 Register a taxpayer (integration: API and screen)', () => 
     await expect(messageUnder(page, 'Mobile (09XXXXXXXXX)')).toHaveText(DUP_MSG);
   });
 
-  test('I6 · − · AC-7 · the screen and the API use the same name-tag', async ({ page, request }) => {
+  test('I6 · AC-7 · use the same name-tag on the screen and the API (a probe user\'s taxpayer stays hidden)', async ({ page, request }) => {
     const theirs = newMobile();
     const mine = newMobile();
     const made = await api(request, 'POST', URL, { full_name: 'Ana Dela Cruz', mobile: theirs }, AS_PROBE);
