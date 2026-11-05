@@ -141,7 +141,7 @@
       "children": [
        {
         "id": "n7",
-        "text": "T1 · Core + · <the main result>\nPOST /api/… {<body>}\n→ 201 <the fields you check>",
+        "text": "A1 · Core + · <the main result>\nPOST /api/… {<body>}\n→ 201 <the fields you check>",
         "note": "",
         "collapsed": false,
         "statusId": "st_api",

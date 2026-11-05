@@ -16,7 +16,7 @@ Paste this whole file into your prompt, under **RULES:**. It tells the AI how te
   - `<feature>-negative.test.js`: the tests marked `−` with wrong input or a duplicate
   - `<feature>-security.test.js`: the tests about another user or a missing header
 - Each file makes its own data first. If a setup call fails: `check('SETUP', ...)` as FAIL, then `return finish(...)`.
-- One `check(...)` per charter node, with the node's id (T1, T2, ...). Check the status code **and** the body, exactly as the charter says.
+- One `check(...)` per charter node, with the node's id (A1, A2, ...). Check the status code **and** the body, exactly as the charter says.
 - Never change an expected result to match what you think the system does. If one looks wrong, say so after the code.
 - A list (`GET` without an id) returns a plain JSON array of rows.
 - Use field names exactly as in the example responses in my story (`taxpayer_id`, `bill_id`, ...). No response has a plain `id`.
@@ -26,10 +26,10 @@ Paste this whole file into your prompt, under **RULES:**. It tells the AI how te
 Example: one test from our project (`tests/api/taxpayer-positive.test.js`):
 
 ```js
-// T1 · + · AC-1 · create a taxpayer
+// A1 · + · AC-1 · create a taxpayer
 const t1 = await api('POST', '/api/v1/training/taxpayers', { full_name: 'Ana Dela Cruz', mobile });
 const b1 = t1.body || {};
-check('T1', 'AC-1 · create a taxpayer', `201, full_name "Ana Dela Cruz", mobile ${mobile}, email null, has taxpayer_id and created_at`,
+check('A1', 'AC-1 · create a taxpayer', `201, full_name "Ana Dela Cruz", mobile ${mobile}, email null, has taxpayer_id and created_at`,
   t1, t1.status === 201 && b1.full_name === 'Ana Dela Cruz' && b1.mobile === mobile && b1.email === null
     && !!b1.taxpayer_id && !!b1.created_at);
 ```

@@ -6,7 +6,7 @@ A small test project, set up the way a test team keeps one at work:
 - a teammate reviews every change (a pull request)
 - CI runs every test on every change and shows **green** (all passed) or **red** (a test failed)
 
-Site under test: `https://city-treasurer-staging.aiqe.pro` (training copy, made-up data). Everything below is done on the GitHub website. You don't need to install anything.
+Site under test: `https://city-treasurer-staging.aiqe.pro` (training copy, made-up data). Sections 1 to 5 are done on the GitHub website, with nothing to install. For Session 6 you also run the tests on your laptop: see **Before class: setup**.
 
 ## What is in this project
 
@@ -28,12 +28,17 @@ uctp-tests/
 ├── charters/                  the test charters (JSON from Charter360)
 ├── prompts/                   your 4-part prompt, our project rules, the charter-update prompt, the review checklist
 ├── scripts/summary.js         joins all reports into reports/summary.json
+├── scripts/doctor.mjs         npm run doctor: is this laptop ready?
+├── runner/                    npm run runner (for Charter360's RUN) and npm run test:watch
+├── test-runs/                 one folder per run: index.html, summary.json, report.pdf
+├── setup-mac.sh, setup-windows.ps1   install what's missing, before class
+├── .claude/skills/qe/SKILL.md the QE skill your AI uses
 ├── reports/                   the results of each run (CI keeps them for you)
 ├── package.json               how to run them: npm run test:api, test:web, test:integration
 └── .github/workflows/tests.yml   the CI: runs all tests on every change
 ```
 
-The worked example is **Card 01 · Register a taxpayer**: 34 API tests (T), 9 web tests (W) and 6 integration tests (I) for the same story, all from `charters/card-01-charter.json`.
+The worked example is **Card 01 · Register a taxpayer**: 34 API tests (A), 9 web tests (W) and 6 integration tests (I) for the same story, all from `charters/card-01-charter.json`.
 
 ## 1 · Make your own copy
 
@@ -83,6 +88,26 @@ Keep the story, the charter and the prompt with the test: add them the same way 
 - **The app is wrong** (the charter says one thing, the site does another): don't change the test to match the bug. Log the bug.
 - To run again without changing anything: **Actions** tab › **UCTP tests** (left) › **Run workflow** › **Run workflow**.
 
-## Run it on your own computer (optional)
+## Before class: setup (Session 6)
 
-With Node.js 22: `npm ci`, then `npm run test:api`. For the web tests also run `npx playwright install chromium` once, then `npm run test:web` and `npm run test:integration`. `npm run summary` writes `reports/summary.json`. To test another site: `BASE_URL=https://… npm run test:api`.
+Do this once, before class, on the laptop you bring. It takes about 15 minutes and downloads about 500 MB.
+If your laptop blocks installs, do it with your IT admin.
+
+1. Get your copy of this repo on your laptop (in a terminal: `git clone https://github.com/<your-username>/uctp-tests.git`, then `cd uctp-tests`).
+2. Run the setup script. It installs only what is missing (Git, Node.js, Chrome, Firefox, the test browsers) and is safe to run twice.
+   - **Mac** (Terminal): `bash setup-mac.sh`
+   - **Windows** (PowerShell): `powershell -ExecutionPolicy Bypass -File .\setup-windows.ps1`
+3. It ends with `npm run doctor`. Every line must be ✅. Each ❌ line says how to fix it; fix it, then run `npm run doctor` again.
+
+## Run your tests
+
+- **From Charter360:** in your `uctp-tests` folder run `npm run runner` and keep that window open. It prints a 6-digit pairing code. In Charter360 open **Environment settings**, type the code, then press **RUN**.
+- **From the terminal (no Charter360):** `npm run test:watch`.
+
+Both do the same run: API tests once, then the web and integration tests in Chrome, then in Firefox (a failing test is re-run up to 3 times; a pass on a re-run shows as **Flaky**). The report opens in Chrome, and everything is saved in `test-runs/<date-time>/` (`index.html`, `summary.json`, `report.pdf`), committed and pushed so CI runs too.
+
+Test ids: **A** = API, **W** = web, **I** = integration. Every test title starts with its id (`A1 · …`), the same id as its charter line.
+
+## Run single suites (optional)
+
+`npm run test:api`, `npm run test:web`, `npm run test:integration`. `npm run summary` writes `reports/summary.json`. To test another site: `BASE_URL=https://… npm run test:api`.

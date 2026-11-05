@@ -17,6 +17,8 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+      - name: Runner tests (no browser)
+        run: npm run test:runner
       - run: npm run test:api
       - name: Keep the API report
         if: ${{ !cancelled() }}
@@ -70,6 +72,30 @@ jobs:
         with:
           name: integration-report
           path: reports/integration/
+          retention-days: 14
+
+  firefox:
+    name: Web + integration in Firefox (info only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    continue-on-error: true   # shows Firefox results; never turns the run red
+    env:
+      REPORT: firefox
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps firefox
+      - run: npx playwright test tests/web tests/integration --project=firefox
+      - name: Keep the Firefox report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: firefox-report
+          path: reports/firefox/
           retention-days: 14
 
   summary:

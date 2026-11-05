@@ -4,12 +4,19 @@
   "description": "My UCTP test project: API, web and integration tests for the same user stories, run by GitHub Actions on every change",
   "scripts": {
     "test:api": "node scripts/run-api-tests.js",
-    "test:web": "playwright test tests/web",
-    "test:integration": "playwright test tests/integration",
+    "test:web": "playwright test tests/web --project=chrome",
+    "test:integration": "playwright test tests/integration --project=chrome",
+    "test:runner": "node --test runner/runner.test.mjs",
     "summary": "node scripts/summary.js",
-    "test": "npm run test:api && npm run test:web && npm run test:integration"
+    "runner": "node runner/runner.mjs",
+    "test:watch": "node scripts/test-watch.mjs",
+    "doctor": "node scripts/doctor.mjs",
+    "test": "npm run test:runner && npm run test:api && npm run test:web && npm run test:integration"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

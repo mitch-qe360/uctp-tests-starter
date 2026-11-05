@@ -30,4 +30,4 @@ GET /api/v1/training/taxpayers
 → 200 [{"taxpayer_id":"…","tenant_id":"TAGAYTAY","full_name":"Ana Dela Cruz","mobile":"09013724603","email":null,"created_by":"Ana-4821","created_at":"…"}]
 ```
 
-The reference charter for this story is `charters/card-01-charter.json`: 34 API tests (T), 9 web tests (W) and 6 integration tests (I).
+The reference charter for this story is `charters/card-01-charter.json`: 34 API tests (A), 9 web tests (W) and 6 integration tests (I).

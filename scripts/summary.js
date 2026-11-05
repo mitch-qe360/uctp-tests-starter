@@ -1,7 +1,7 @@
 // One small results file for the whole run: reports/summary.json.
 // It joins the API reports (reports/*.json), the web report and the integration report
 // (reports/web/results.json, reports/integration/results.json) into one row per test:
-//   { id: "T4", kind: "api", test: "...", result: "PASS" | "FAIL" | "SKIPPED", why: "..." }
+//   { id: "A4", kind: "api", test: "...", result: "PASS" | "FAIL" | "SKIPPED", why: "..." }
 // You give this file to the AI to update your charter (prompts/update-charter-prompt.md).
 const fs = require('fs');
 const path = require('path');

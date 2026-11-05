@@ -14,7 +14,7 @@ RESULTS:
 <paste summary.json here>
 
 DO THIS:
-1. Each result has an "id" (T1, W1, I1 ...). Find the charter node whose text starts with that id.
+1. Each result has an "id" (A1, W1, I1 ...). Find the charter node whose text starts with that id.
    - All results for that id PASS: set the node's "highlight" to "green".
    - Any result for that id FAIL: set "highlight" to "red".
    - Set the node's "note" to one line: "Run <YYYY-MM-DD of ranAt> · PASS" or "Run <YYYY-MM-DD of ranAt> · FAIL: <why, at most 200 characters>".
