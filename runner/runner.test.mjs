@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRunner, busyPortMessage } from './runner.mjs';
-import { ROOT, onlyGrep, splitTitle, rowsFromPlaywright, buildSummary, sutName, runPaths, writeRunsIndex, browserMissing, linkTo, charterIds, safeName, reportHtml, stripCredentials } from './lib.mjs';
+import { ROOT, pagesUrl, onlyGrep, splitTitle, rowsFromPlaywright, buildSummary, sutName, runPaths, writeRunsIndex, browserMissing, linkTo, charterIds, safeName, reportHtml, stripCredentials } from './lib.mjs';
 
 const ORIGIN = 'https://qe-360-academy-staging.aiqe.pro';
 const CODE = '123456';
@@ -375,4 +375,17 @@ test('only: the grep picks exactly those ids, and Not tested counts only them', 
   const s = buildSummary({ runId: 'r', startedAt: '', finishedAt: '', baseUrl: '', browsers: [], charter, only: ['A1', 'W3'],
     rows: [{ id: 'A1', title: 'A1 · x', browser: 'api', status: 'passed', error: null, screenshot: null }] });
   assert.deepEqual(s.not_tested, ['W3']);
+});
+
+test('pages_url comes from the git remote, and the report shows it', () => {
+  const f = 'Card 01 · TRN-01 - 2026-11-05 143000.html';
+  const want = 'https://ana.github.io/uctp-tests/2026-11-05/Card%2001%20%C2%B7%20TRN-01%20-%202026-11-05%20143000.html';
+  assert.equal(pagesUrl('https://github.com/Ana/uctp-tests.git', '2026-11-05', f), want);
+  assert.equal(pagesUrl('git@github.com:Ana/uctp-tests.git', '2026-11-05', f), want);
+  assert.equal(pagesUrl('https://github.com/Ana/uctp-tests', '2026-11-05', f), want);
+  assert.equal(pagesUrl('https://gitlab.com/ana/uctp-tests.git', '2026-11-05', f), null);
+  assert.equal(pagesUrl('', '2026-11-05', f), null);
+  const s = buildSummary({ runId: 'r', startedAt: '', finishedAt: '', baseUrl: '', browsers: [], charter: null, rows: [] });
+  s.pages_url = want;
+  assert.match(reportHtml(s), /On GitHub Pages about a minute after the push: <a href="https:\/\/ana\.github\.io\/uctp-tests\/2026-11-05\//);
 });
