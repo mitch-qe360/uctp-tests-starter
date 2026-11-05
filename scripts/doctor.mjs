@@ -30,9 +30,20 @@ if (remote.ok) {
   const branch = git(['rev-parse', '--abbrev-ref', 'HEAD']).out;
   const push = git(['push', '--dry-run', 'origin', `HEAD:${branch}`]);
   if (push.ok) ok(`git push works (branch ${branch})`);
-  else fail(`git push --dry-run failed: ${push.out.split('\n').slice(-1)[0]}`,
+  else if (/fetch first|non-fast-forward|rejected|behind/i.test(push.out)) {
+    // GitHub has a commit this laptop doesn't (for example, a file edited on github.com).
+    fail('GitHub has changes this laptop doesn\'t have yet (git push was refused)',
+      'run "git pull --no-rebase" in this folder (if an editor opens, save and close it), then run this check again.');
+  } else fail(`git push --dry-run failed: ${push.out.split('\n').slice(-1)[0]}`,
     'run "git push" once in this folder and sign in to GitHub when asked. The repo must be YOUR copy (github.com/<your-username>/uctp-tests), not the teacher\'s.');
 }
+
+// 4b. Git knows who you are (every commit needs a name and an email; RUN commits the test runs)
+// "git var GIT_AUTHOR_IDENT" fails exactly when a commit would fail for lack of a name or email.
+const ident = git(['var', 'GIT_AUTHOR_IDENT']);
+if (ident.ok) ok(`Git user: ${ident.out.replace(/\s+\d+\s+[+-]\d{4}$/, '')}`);
+else fail('Git doesn\'t know your name and email yet, so commits will fail ("unable to auto-detect email address")',
+  'git config --global user.name "Your Name"   then   git config --global user.email "the-email-you-use-on-github@example.com"');
 
 // 5. Playwright browsers: Chrome and Firefox for the tests
 let pw = null;
