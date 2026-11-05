@@ -260,6 +260,18 @@ const PW_CLI = path.join(ROOT, 'node_modules', '@playwright', 'test', 'cli.js');
 // Browsers the runner may install by itself before a run (Chrome and Edge need an administrator: the message says how).
 const PW_INSTALL = { firefox: 'firefox', webkit: 'webkit' };
 
+// The Install button in Charter360: Playwright installs the browser (Chrome and Edge ask for an administrator
+// on some computers; then the error says to use the normal installer).
+const INSTALL_NAME = { chrome: 'chrome', firefox: 'firefox', edge: 'msedge', webkit: 'webkit' };
+const INSTALL_HELP = { chrome: 'https://www.google.com/chrome', edge: 'https://www.microsoft.com/edge' };
+export async function installBrowser(b) {
+  const r = await runNode([PW_CLI, 'install', INSTALL_NAME[b]], { env: { ...process.env, FORCE_COLOR: '0' }, timeoutMs: 20 * 60 * 1000 });
+  if (r.code === 0 && !(await browserMissing(b))) return { ok: true };
+  return { ok: false, error: INSTALL_HELP[b]
+    ? `it needs an administrator here. Install it from ${INSTALL_HELP[b]}, then check again.`
+    : 'the download failed. Check your internet, then try again.' };
+}
+
 // Which browsers are on this computer, for Charter360's Environment settings.
 export async function installedBrowsers() {
   const out = {};

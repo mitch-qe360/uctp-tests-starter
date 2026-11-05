@@ -5,17 +5,18 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRunner, busyPortMessage } from './runner.mjs';
+import { askAi } from './ai.mjs';
 import { ROOT, pagesUrl, onlyGrep, splitTitle, rowsFromPlaywright, buildSummary, sutName, runPaths, writeRunsIndex, browserMissing, linkTo, charterIds, safeName, reportHtml, stripCredentials } from './lib.mjs';
 
 const ORIGIN = 'https://qe-360-academy-staging.aiqe.pro';
 const CODE = '123456';
 
-async function withRunner(fn, start) {
+async function withRunner(fn, start, extra = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'runner-test-'));
   fs.mkdirSync(path.join(root, 'config'));
   fs.copyFileSync(path.join(ROOT, 'config', 'environment.js'), path.join(root, 'config', 'environment.js'));
   const jobs = [];
-  const runner = createRunner({ root, code: CODE, port: 0, start: start || (async job => { jobs.push(job); return { run_id: job.runId }; }) });
+  const runner = createRunner({ root, code: CODE, port: 0, start: start || (async job => { jobs.push(job); return { run_id: job.runId }; }), ...extra });
   const port = await runner.listen();
   const call = (method, p, { headers = {}, body } = {}) => fetch(`http://127.0.0.1:${port}${p}`, {
     method, headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...headers },
@@ -74,7 +75,7 @@ test('/status has the contract shape, and paired says if the code is right', () 
   assert.equal(res.status, 200);
   assert.equal(res.headers.get('access-control-allow-origin'), ORIGIN);
   let s = await res.json();
-  assert.deepEqual(Object.keys(s).sort(), ['branch', 'browsers', 'busy', 'ok', 'paired', 'remote', 'repo', 'version'].sort());
+  assert.deepEqual(Object.keys(s).sort(), ['ai_providers', 'branch', 'browsers', 'busy', 'ok', 'paired', 'remote', 'repo', 'version'].sort());
   assert.equal(s.ok, true);
   assert.equal(s.version, '1');
   assert.equal(s.paired, false);
@@ -428,3 +429,38 @@ test('a test.fixme test is Not tested, not Blocked', () => {
   assert.equal(rows[0].status, 'not_tested');
   assert.match(rows[0].error, /ASK/);
 });
+
+
+test('askAi: each provider gets its own URL, key header and body, and its answer is read', async () => {
+  const seen = [];
+  const fake = answer => async (url, o) => { seen.push({ url, headers: o.headers, body: JSON.parse(o.body) }); return { ok: true, json: async () => answer }; };
+  const base = { key: 'sk-test-1234567890', system: 'skill', user: 'story' };
+  let r = await askAi({ ...base, provider: 'gemini' }, { fetchImpl: fake({ candidates: [{ content: { parts: [{ text: 'G' }] } }] }) });
+  assert.deepEqual([r.text, seen[0].url.includes('gemini-2.5-flash:generateContent'), seen[0].headers['x-goog-api-key']], ['G', true, base.key]);
+  r = await askAi({ ...base, provider: 'anthropic', json: true }, { fetchImpl: fake({ content: [{ type: 'text', text: 'A' }] }) });
+  assert.deepEqual([r.text, seen[1].url, seen[1].headers['x-api-key'], seen[1].body.system], ['A', 'https://api.anthropic.com/v1/messages', base.key, 'skill']);
+  r = await askAi({ ...base, provider: 'openai', json: true }, { fetchImpl: fake({ choices: [{ message: { content: 'O' } }] }) });
+  assert.deepEqual([r.text, seen[2].headers.Authorization, seen[2].body.response_format.type], ['O', `Bearer ${base.key}`, 'json_object']);
+  r = await askAi({ ...base, provider: 'kimi' }, { fetchImpl: fake({ choices: [{ message: { content: 'K' } }] }) });
+  assert.deepEqual([r.text, seen[3].url], ['K', 'https://api.moonshot.ai/v1/chat/completions']);
+  const bad = await askAi({ ...base, provider: 'openai' }, { fetchImpl: async () => ({ ok: false, status: 429, json: async () => ({ error: { message: 'quota' } }) }) });
+  assert.deepEqual([bad.ok, bad.status, bad.error], [false, 429, 'quota']);
+  assert.equal((await askAi({ ...base, provider: 'evil' })).ok, false);
+  assert.equal((await askAi({ ...base, provider: 'gemini', key: '' })).ok, false);
+  assert.equal((await askAi({ ...base, provider: 'gemini', model: '../x' })).ok, false);
+});
+
+test('/ai and /install need the pairing code; install reports its state in /status', () => withRunner(async ({ call }) => {
+  let res = await call('POST', '/ai', { headers: { Origin: ORIGIN }, body: { provider: 'gemini' } });
+  assert.equal(res.status, 401);
+  res = await call('POST', '/ai', { headers: good, body: { provider: 'gemini', user: 'hi' } });
+  assert.deepEqual([res.status, (await res.json()).text], [200, 'echo hi']);
+  res = await call('POST', '/install', { headers: good, body: { browser: 'safari' } });
+  assert.equal(res.status, 400);
+  res = await call('POST', '/install', { headers: good, body: { browser: 'webkit' } });
+  assert.equal(res.status, 200);
+  await new Promise(r => setTimeout(r, 20));
+  const st = await (await call('GET', '/status', { headers: good })).json();
+  assert.equal(st.installs.webkit, 'done');
+  assert.deepEqual(st.ai_providers, ['gemini', 'anthropic', 'openai', 'kimi']);
+}, null, { askAi: async b => ({ ok: true, text: `echo ${b.user}` }), install: async () => ({ ok: true }) }));

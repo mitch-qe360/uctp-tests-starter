@@ -11,7 +11,8 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { ROOT, ALL_BROWSERS, STAGING_HOST, loadEnvironment, newRunId, safeName, repoInfo, runAll, closeHeldBrowsers, runDay, findRunDir, linkTo, makeControl, scanTests, charterFiles, saveCharterFiles, installedBrowsers } from './lib.mjs';
+import { askAi, AI_PROVIDERS } from './ai.mjs';
+import { ROOT, ALL_BROWSERS, STAGING_HOST, loadEnvironment, newRunId, safeName, repoInfo, runAll, closeHeldBrowsers, runDay, findRunDir, linkTo, makeControl, scanTests, charterFiles, saveCharterFiles, installedBrowsers, installBrowser } from './lib.mjs';
 
 export const PORT = 7357;
 export const DEFAULT_ORIGINS = [
@@ -71,6 +72,7 @@ export function createRunner(opts = {}) {
   const runs = new Map();
   let busy = false;
   let current = null;   // the job that is running
+  const installs = {};  // browser -> 'installing' | 'done' | 'failed: …' (Install buttons in Charter360)
 
   const start = opts.start || (job => runAll({
     ...job, headed: job.headed !== false && process.env.HEADED !== '0', push: process.env.NO_PUSH !== '1',
@@ -149,7 +151,8 @@ export function createRunner(opts = {}) {
     try {
       if (req.method === 'GET' && p === '/status') {
         return send(res, 200, { ok: true, version: '1', paired, ...repoInfo(root), browsers: ALL_BROWSERS, busy,
-          installed: paired ? await installedBrowsers() : undefined }, allowed);
+          installed: paired ? await installedBrowsers() : undefined, installs: paired ? installs : undefined,
+          ai_providers: Object.keys(AI_PROVIDERS) }, allowed);
       }
       if (req.method === 'GET' && p.startsWith('/report/')) return serveReport(res, p, allowed);
 
@@ -226,6 +229,25 @@ export function createRunner(opts = {}) {
           .catch(e => runs.set(runId, { ...(runs.get(runId) || {}), state: 'error', message: String(e?.message || e) }))
           .finally(() => { busy = false; current = null; });
         return send(res, 200, { run_id: runId }, allowed);
+      }
+
+      if (req.method === 'POST' && p === '/install') {
+        const body = await readJson(req);
+        const b = body.browser;
+        if (!ALL_BROWSERS.includes(b)) return send(res, 400, { error: `browser must be one of ${ALL_BROWSERS.join(', ')}.` }, allowed);
+        if (busy) return send(res, 409, { error: 'A run is going. Install after it finishes.' }, allowed);
+        if (installs[b] === 'installing') return send(res, 200, { installing: b }, allowed);
+        installs[b] = 'installing';
+        (opts.install || installBrowser)(b).then(r => { installs[b] = r.ok ? 'done' : `failed: ${r.error}`; },
+          e => { installs[b] = `failed: ${String(e?.message || e)}`; });
+        return send(res, 200, { installing: b }, allowed);
+      }
+
+      if (req.method === 'POST' && p === '/ai') {
+        const body = await readJson(req);
+        const r = await (opts.askAi || askAi)(body);
+        // A provider's own error comes back as 502 with its status, so a 401 from the provider isn't read as a wrong pairing code.
+        return send(res, r.ok ? 200 : 502, r.ok ? { text: r.text } : { error: r.error, provider_status: r.status }, allowed);
       }
 
       if (req.method === 'POST' && p === '/stop') {
