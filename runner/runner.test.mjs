@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRunner, busyPortMessage } from './runner.mjs';
-import { ROOT, splitTitle, rowsFromPlaywright, buildSummary, sutName, runPaths, writeRunsIndex, browserMissing, linkTo, charterIds, safeName, reportHtml, stripCredentials } from './lib.mjs';
+import { ROOT, onlyGrep, splitTitle, rowsFromPlaywright, buildSummary, sutName, runPaths, writeRunsIndex, browserMissing, linkTo, charterIds, safeName, reportHtml, stripCredentials } from './lib.mjs';
 
 const ORIGIN = 'https://qe-360-academy-staging.aiqe.pro';
 const CODE = '123456';
@@ -332,4 +332,47 @@ test('port busy: our runner gets its folder, code and how to stop it; another pr
   assert.doesNotMatch(other, /123456/);
   assert.match(other, /find its PID/);
   assert.match(busyPortMessage({ status: null, pid: '99' }), /^Another program uses port 7357.*kill 99/);
+});
+
+test('POST /stop: 409 when idle, 401 without code, and a running job ends as stopped', () => withRunner(async ({ call }) => {
+  assert.equal((await call('POST', '/stop', { headers: good, body: {} })).status, 409);
+  assert.equal((await call('POST', '/stop', { headers: { Origin: ORIGIN }, body: {} })).status, 401);
+  const { run_id } = await (await call('POST', '/run', { headers: good, body: { base_url: 'https://city-treasurer-staging.aiqe.pro', browsers: ['chrome'] } })).json();
+  const stop = await call('POST', '/stop', { headers: good, body: {} });
+  assert.equal(stop.status, 200);
+  assert.deepEqual(await stop.json(), { stopping: true, run_id });
+  let r;
+  for (let i = 0; i < 50; i++) { r = await (await call('GET', `/run/${run_id}`, { headers: good })).json(); if (r.state !== 'running') break; await new Promise(x => setTimeout(x, 10)); }
+  assert.equal(r.state, 'stopped');
+  assert.equal(r.message, 'Stopped by you');
+  assert.equal(r.summary.stopped, true);
+  assert.equal((await call('POST', '/stop', { headers: good, body: {} })).status, 409);
+}, async job => { while (!job.control.stopped) await new Promise(x => setTimeout(x, 5)); return { run_id: job.runId, stopped: true }; }));
+
+test('POST /run: only and headed are checked and passed on', async () => {
+  const jobs = [];
+  await withRunner(async ({ call }) => {
+    const base = { base_url: 'https://city-treasurer-staging.aiqe.pro', browsers: ['chrome'] };
+    for (const only of [[], ['T1'], ['A1; rm'], ['a1'], ['A1234'], 'A1', Array.from({ length: 51 }, (_, i) => `A${i + 1}`)]) {
+      assert.equal((await call('POST', '/run', { headers: good, body: { ...base, only } })).status, 400, JSON.stringify(only));
+    }
+    assert.equal((await call('POST', '/run', { headers: good, body: { ...base, headed: 'no' } })).status, 400);
+    assert.equal((await call('POST', '/run', { headers: good, body: { ...base, only: ['A1', 'W3', 'A1'], headed: false } })).status, 200);
+    await new Promise(x => setTimeout(x, 20));
+    assert.deepEqual(jobs[0].only, ['A1', 'W3']);
+    assert.equal(jobs[0].headed, false);
+  }, async job => { jobs.push(job); return { run_id: job.runId }; });
+});
+
+test('only: the grep picks exactly those ids, and Not tested counts only them', () => {
+  const re = new RegExp(onlyGrep(['A1', 'W3']));
+  assert.ok(re.test('TRN-01 Register a taxpayer (API) A1 · AC-1 · create'));
+  assert.ok(re.test('W3 · AC-2 · see it'));
+  assert.ok(!re.test('TRN-01 (API) A10 · AC-6 · email'));
+  assert.ok(!re.test('TRN-01 (web) W33 · x'));
+  assert.ok(!re.test('TRN-01 (API) A2 · AC-2 · read back the taxpayer from A1 by its taxpayer_id'));
+  const charter = { root: { text: 'S', children: [{ text: 'A1 · x' }, { text: 'A2 · y' }, { text: 'W3 · z' }] } };
+  const s = buildSummary({ runId: 'r', startedAt: '', finishedAt: '', baseUrl: '', browsers: [], charter, only: ['A1', 'W3'],
+    rows: [{ id: 'A1', title: 'A1 · x', browser: 'api', status: 'passed', error: null, screenshot: null }] });
+  assert.deepEqual(s.not_tested, ['W3']);
 });
