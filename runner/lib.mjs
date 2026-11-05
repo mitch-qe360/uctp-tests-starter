@@ -1,6 +1,6 @@
 // Shared by the runner (runner/runner.mjs) and npm run test:watch (scripts/test-watch.mjs):
 // one test run = save the charter, API tests once, web + integration tests in each browser,
-// then one folder per run, test-runs/<YYYY-MM-DD>/<SUT> - <YYYY-MM-DD HHMMSS>/, holding that name's .html
+// then one folder per run, test-runs/<YYYY-MM-DD>/<SUT> - <story ID and name> - <YYYY-MM-DD HHMMSS>/, holding that name's .html
 // (the report), .json and the screenshots; refresh test-runs/index.html (the list GitHub Pages shows), open the report, commit and push.
 //
 // Only fixed commands run here (node + Playwright's CLI, git), always as argument arrays, never a shell.
@@ -42,10 +42,52 @@ export function newRunId(date = new Date(), root = ROOT) {
 export const runDay = id => `${id.slice(0, 4)}-${id.slice(4, 6)}-${id.slice(6, 8)}`;
 export const runTime = id => id.slice(9);
 
+// One line of text as a file-name part: no \ / : * ? " < > | or control characters, at most `max` long.
+const filePart = (text, max = 60) => String(text || '').split('\n')[0].replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '-')
+  .replace(/\s+/g, ' ').trim().replace(/^[#.\s-]+|[.\s-]+$/g, '').slice(0, max).trim();
+
 // The system under test (charter root) as a file-name part. Fallback "Tests".
 export function sutName(charter) {
-  const s = charterStory(charter).split('\n')[0].replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '-').replace(/\s+/g, ' ').trim().replace(/^[.\s-]+|[.\s-]+$/g, '').slice(0, 60).trim();
-  return s || 'Tests';
+  return filePart(charterStory(charter)) || 'Tests';
+}
+
+// A story ID and its name: "Card 01 · TRN-01 · Register a taxpayer" -> "TRN-01", "Register a taxpayer".
+// Not AC-1 (acceptance criteria) or names like UTF-8.
+const STORY_RE = /(?:^|[^A-Za-z0-9-])((?!(?:AC|UTF|ISO|HTTP|SHA|TLS)-)[A-Z][A-Z0-9]{1,9}-\d{1,4})(?![\w-])[ \t]*(?:[·:|—–-][ \t]*)?([^\n·|]*)/;
+
+// The user story for the run name, "TRN-01 Register a taxpayer": the first story ID found in the hints
+// (Charter360 sends the map title and the story box's first line), the charter title, the root, its top-level
+// nodes or a "Story…" node. Without an ID: the charter title, when it isn't the SUT. "" when there is nothing.
+export function storyName(charter, hints = []) {
+  const texts = [...hints].map(String);
+  if (charter && typeof charter === 'object') {
+    texts.push(String(charter.title || ''), String(charter.root?.text || ''));
+    const top = Array.isArray(charter.root?.children) ? charter.root.children : [];
+    for (const c of top) texts.push(String(c?.text || ''));
+    (function walk(nodes) {
+      for (const n of nodes || []) {
+        if (/^\s*Story\b/i.test(String(n?.text || ''))) texts.push(String(n.text));
+        if (Array.isArray(n?.children)) walk(n.children);
+      }
+    })(top);
+  }
+  for (const t of texts) {
+    for (const line of t.split('\n').slice(0, 5)) {
+      const m = STORY_RE.exec(line);
+      if (m) return filePart(`${m[1]} ${m[2]}`);
+    }
+  }
+  const title = filePart(charter?.title || hints[0] || '');
+  return title && title !== sutName(charter) ? title : '';
+}
+
+// The run's name before the date: "<SUT> - <story ID> <story name>", or only the SUT when there is no story
+// or the SUT line already names that story.
+export function runLabel(charter, hints = []) {
+  const sut = sutName(charter);
+  const story = storyName(charter, hints);
+  if (!story || sut === story || sut.includes(story.split(' ')[0])) return sut;
+  return `${sut} - ${story}`;
 }
 
 // Where one run's files go: one folder per run, test-runs/<day>/<base>/ with <base>.html, <base>.json and the
@@ -183,7 +225,7 @@ export function buildSummary({ runId, startedAt, finishedAt, baseUrl, browsers, 
     counts,
     results: rows,
     not_tested: notTested,
-    report: 'index.html',      // set by runAll: "<SUT> - <day> <time>.html", relative to test-runs/<day>/
+    report: 'index.html',      // set by runAll: "<SUT> - <story> - <day> <time>.html", relative to test-runs/<day>/
     messages: [],
     pushed: false,
     push_message: '',
@@ -486,12 +528,12 @@ export function pagesUrl(remote, day, file) {
 }
 
 // ---------- the whole run ----------
-// opts: { charter, name, baseUrl, browsers, headed, push, open, reportUrl(runId, reportFile), onProgress(p) }
+// opts: { charter, name, story (lines from Charter360: map title, story box), baseUrl, browsers, headed, push, open, reportUrl(runId, reportFile), onProgress(p) }
 export async function runAll(opts) {
   const root = ROOT;
   const runId = opts.runId || newRunId();
   const startedAt = new Date().toISOString();
-  const P = runPaths(root, runId, sutName(opts.charter));
+  const P = runPaths(root, runId, runLabel(opts.charter, opts.story || []));
   const rawDir = path.join(P.assetsDir, 'raw');
   fs.mkdirSync(rawDir, { recursive: true });
 
@@ -583,7 +625,7 @@ export async function runAll(opts) {
     if (!control.stopped) { rows.push(...readPwRows(jsonFile, b, P.runDir)); finished.add(b); }
   }
 
-  // 4. The report: <SUT> - <day> <time>.html and .json in the run's folder, and the runs list.
+  // 4. The report: <SUT> - <story> - <day> <time>.html and .json in the run's folder, and the runs list.
   // Stopped: the steps that didn't finish count as Not tested.
   if (control.stopped) {
     const steps = [...(wantApi ? [['api', apiArgs]] : []), ...(wantBrowsers ? browsers.map(b => [b, browserArgs(b)]) : [])];
