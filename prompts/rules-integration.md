@@ -11,7 +11,7 @@ An integration test checks that **the API and the screen agree**: it uses both i
   import { signIn, newMobile, messageUnder, api, AS_PROBE, ME } from '../../helpers/web';
   ```
 - Our helper does the rest. Never write the site address, the name-tag or the headers in a test.
-  - `await signIn(page)` opens the site and signs in with my name-tag; you are then on **Home**. Call it in `test.beforeEach`.
+  - `await signIn(page)` opens the site and signs in with my name-tag; you are then on **Home**. Call it in `test.beforeEach`. On a first visit the site shows a "Your name" dialog that blocks the page until it is filled in; `signIn` fills it in. Never `page.goto` a page without it.
   - `await api(request, method, path, body)` calls the API as me and returns `{ status, body }`. Add `AS_PROBE` as the 5th argument to call it as another user. Get `request` from the test: `async ({ page, request }) => { ... }`.
   - `messageUnder(page, '<field label>')` is the message under that field on the screen. Use the field's whole label, exactly as the charter writes it (for example `Mobile (09XXXXXXXXX)`).
   - `newMobile()` makes a new mobile on every run: `09` + 9 digits. For a `+639` mobile: `'+639' + newMobile().slice(2)`. `ME` is my name-tag (to compare with `created_by`).

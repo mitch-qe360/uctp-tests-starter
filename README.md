@@ -106,6 +106,8 @@ If your laptop blocks installs, do it with your IT admin.
 
 Both do the same run: API tests once, then the web and integration tests in Chrome, then in Firefox (a failing test is re-run up to 3 times; a pass on a re-run shows as **Flaky**). The report opens in Chrome, and everything is saved in `test-runs/<date-time>/` (`index.html`, `summary.json`, `report.pdf`), committed and pushed so CI runs too.
 
+Writing web tests: the site shows a **"Your name"** dialog on the first visit that blocks every page; start each web or integration test with `await signIn(page)` (in `helpers/web.ts`, used in `test.beforeEach`), which fills it in.
+
 Test ids: **A** = API, **W** = web, **I** = integration. Every test is named `<id> · <AC> · <what the test does, with its data>`, the same as its charter line, for example `A12 · AC-5 · refuse the full name "A" (1 letter)`.
 
 ## Run single suites (optional)

@@ -9,7 +9,7 @@ Paste this whole file into your prompt, under **RULES:**. It tells the AI how te
   import { signIn, newMobile, messageUnder } from '../../helpers/web';
   ```
 - Our helper does the rest. Never write the site address or the name-tag in a test.
-  - `await signIn(page)` opens the site and signs in with my name-tag; you are then on **Home**. Call it in `test.beforeEach`.
+  - `await signIn(page)` opens the site and signs in with my name-tag; you are then on **Home**. Call it in `test.beforeEach`. On a first visit the site shows a "Your name" dialog that blocks the page until it is filled in; `signIn` fills it in. Never `page.goto` a page without it.
   - `newMobile()` makes a new mobile on every run: `09` + 9 digits. For a `+639` mobile: `'+639' + newMobile().slice(2)`.
   - `messageUnder(page, '<field label>')` is the message under that field: `await expect(messageUnder(page, 'Mobile (09XXXXXXXXX)')).toHaveText('...')`.
 - Open pages the way a clerk does: click the buttons and links. Only `signIn` uses a URL.
