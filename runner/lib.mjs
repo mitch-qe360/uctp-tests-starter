@@ -13,7 +13,8 @@ import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-export const ALL_BROWSERS = ['chrome', 'firefox'];
+export const ALL_BROWSERS = ['chrome', 'firefox', 'edge', 'webkit'];
+export const BROWSER_LABEL = { chrome: 'Chrome', firefox: 'Firefox', edge: 'Microsoft Edge', webkit: 'Safari (WebKit)' };
 export const STAGING_HOST = 'city-treasurer-staging.aiqe.pro';
 
 const require = createRequire(import.meta.url);
@@ -256,6 +257,15 @@ document.querySelectorAll('tr.click').forEach(function (tr) {
 
 // ---------- processes ----------
 const PW_CLI = path.join(ROOT, 'node_modules', '@playwright', 'test', 'cli.js');
+// Browsers the runner may install by itself before a run (Chrome and Edge need an administrator: the message says how).
+const PW_INSTALL = { firefox: 'firefox', webkit: 'webkit' };
+
+// Which browsers are on this computer, for Charter360's Environment settings.
+export async function installedBrowsers() {
+  const out = {};
+  for (const b of ALL_BROWSERS) out[b] = !(await browserMissing(b));
+  return out;
+}
 
 // Run node with fixed arguments. onLine gets each stdout line. Never uses a shell.
 // Kill a process and everything it started (Playwright, its workers, their browsers).
@@ -348,9 +358,21 @@ export const onlyGrep = ids => `(?:^|\\s)(${ids.join('|')}) ·`;   // names are 
 
 // Is this browser installed? Checks the file only: never starts the browser.
 export async function browserMissing(b, { exists = fs.existsSync, platform = process.platform, env = process.env } = {}) {
-  const { chromium, firefox } = await import('@playwright/test');
+  const { chromium, firefox, webkit } = await import('@playwright/test');
   if (b === 'firefox') {
     return exists(firefox.executablePath()) ? null : "Firefox isn't installed: run npx playwright install firefox";
+  }
+  if (b === 'webkit') {
+    return exists(webkit.executablePath()) ? null : "Safari's engine (WebKit) isn't installed: run npx playwright install webkit";
+  }
+  const home0 = env.HOME || env.USERPROFILE || '';
+  if (b === 'edge') {
+    const edge = platform === 'darwin'
+      ? ['/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', path.join(home0, 'Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge')]
+      : platform === 'win32'
+        ? [env.PROGRAMFILES, env['PROGRAMFILES(X86)']].filter(Boolean).map(d => path.join(d, 'Microsoft', 'Edge', 'Application', 'msedge.exe'))
+        : ['/opt/microsoft/msedge/msedge', '/usr/bin/microsoft-edge'];
+    return edge.some(p => exists(p)) ? null : "Microsoft Edge isn't installed: install it from https://www.microsoft.com/edge (or run npx playwright install msedge)";
   }
   if (env.CI) return exists(chromium.executablePath()) ? null : "Chromium isn't installed: run npx playwright install chromium";
   const home = env.HOME || env.USERPROFILE || '';
@@ -518,9 +540,14 @@ export async function runAll(opts) {
   if (opts.headed) await closeHeldBrowsers();      // last run's windows
   for (const b of wantBrowsers ? browsers : []) {
     if (control.stopped) break;
-    const name = b === 'chrome' ? 'Chrome' : 'Firefox';
+    const name = BROWSER_LABEL[b] || b;
     tell({ step: b, message: `Web and integration tests in ${name} (browser ${browsers.indexOf(b) + 1} of ${browsers.length})` });
-    const missing = await browserMissing(b);
+    let missing = await browserMissing(b);
+    if (missing && PW_INSTALL[b] && opts.install !== false) {   // Playwright's own browsers install without an admin
+      tell({ message: `Installing ${name} (one time, a few minutes)…` });
+      await runNode([PW_CLI, 'install', PW_INSTALL[b]], { env: baseEnv, control });
+      missing = await browserMissing(b);
+    }
     if (missing) {                                  // never start a browser that isn't there
       messages.push(missing);
       const titles = listTests(browserArgs(b), baseEnv);

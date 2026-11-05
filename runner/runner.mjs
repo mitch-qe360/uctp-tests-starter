@@ -11,7 +11,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { ROOT, ALL_BROWSERS, STAGING_HOST, loadEnvironment, newRunId, safeName, repoInfo, runAll, closeHeldBrowsers, runDay, findRunDir, linkTo, makeControl, scanTests, charterFiles, saveCharterFiles } from './lib.mjs';
+import { ROOT, ALL_BROWSERS, STAGING_HOST, loadEnvironment, newRunId, safeName, repoInfo, runAll, closeHeldBrowsers, runDay, findRunDir, linkTo, makeControl, scanTests, charterFiles, saveCharterFiles, installedBrowsers } from './lib.mjs';
 
 export const PORT = 7357;
 export const DEFAULT_ORIGINS = [
@@ -148,7 +148,8 @@ export function createRunner(opts = {}) {
 
     try {
       if (req.method === 'GET' && p === '/status') {
-        return send(res, 200, { ok: true, version: '1', paired, ...repoInfo(root), browsers: ALL_BROWSERS, busy }, allowed);
+        return send(res, 200, { ok: true, version: '1', paired, ...repoInfo(root), browsers: ALL_BROWSERS, busy,
+          installed: paired ? await installedBrowsers() : undefined }, allowed);
       }
       if (req.method === 'GET' && p.startsWith('/report/')) return serveReport(res, p, allowed);
 
@@ -198,7 +199,7 @@ export function createRunner(opts = {}) {
         }
         const browsers = body.browsers === undefined ? env.browsers : body.browsers;
         if (!Array.isArray(browsers) || !browsers.length || browsers.some(b => !ALL_BROWSERS.includes(b)) || new Set(browsers).size !== browsers.length) {
-          return send(res, 400, { error: 'browsers must be a list of "chrome" and/or "firefox".' }, allowed);
+          return send(res, 400, { error: `browsers must be a list of ${ALL_BROWSERS.join(', ')} (each once).` }, allowed);
         }
         const runId = newRunId(new Date(), root);
         let only = null;
