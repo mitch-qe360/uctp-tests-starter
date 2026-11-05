@@ -488,3 +488,15 @@ test('claude-code is off unless CHARTER360_CLAUDE_CODE=1, runs isolated, and rea
   assert.deepEqual([r.ok, r.text], [true, 'charter']);
   assert.match(got, /^story\n\nAnswer with JSON only\.$/);
 });
+
+
+test('autostart files: Mac plist and Windows .cmd start the runner, Claude Code only when asked', async () => {
+  const { macPlist, windowsCmd } = await import('../scripts/autostart.mjs');
+  const mac = macPlist({ node: '/n/node', runner: '/r/runner.mjs', root: '/r', log: '/r/runner.log', claudeCode: false });
+  assert.match(mac, /<string>\/n\/node<\/string><string>\/r\/runner.mjs<\/string>/);
+  assert.doesNotMatch(mac, /CHARTER360_CLAUDE_CODE/);
+  assert.match(macPlist({ node: 'n', runner: 'r', root: '/r', log: 'l', claudeCode: true }), /CHARTER360_CLAUDE_CODE<\/key><string>1/);
+  const win = windowsCmd({ node: 'C:\\node.exe', runner: 'C:\\r\\runner.mjs', root: 'C:\\r', claudeCode: false });
+  assert.match(win, /start "Charter360 runner" \/min "C:\\node.exe" "C:\\r\\runner.mjs"/);
+  assert.doesNotMatch(win, /CHARTER360_CLAUDE_CODE/);
+});
