@@ -220,6 +220,7 @@ img{max-width:100%;border:1px solid var(--line)}
 </style></head><body>
 <h1>Test run ${esc(summary.run_id)}</h1>
 <p class="meta">${esc(summary.base_url)} · browsers: ${esc((summary.browsers || []).join(', '))} · ${esc(summary.started_at)} to ${esc(summary.finished_at)}</p>
+${summary.pages_url ? `<p class="meta">On GitHub Pages about a minute after the push: <a href="${esc(summary.pages_url)}">${esc(summary.pages_url)}</a></p>` : ''}
 ${summary.story ? `<div class="story">${esc(summary.story)}</div>` : ''}
 <div class="counts">${Object.keys(label).map(k => `<div class="count"><b>${c[k] || 0}</b>${label[k]}</div>`).join('')}</div>
 ${(summary.messages || []).map(m => `<p class="msg">${esc(m)}</p>`).join('')}
@@ -402,8 +403,30 @@ async function openChromeWindow() {
   const context = await chromium.launchPersistentContext(dir, {
     channel: 'chrome', headless: false, viewport: null, args: [`--remote-debugging-port=${port}`],
   });
-  held.push({ close: async () => { await context.close(); fs.rmSync(dir, { recursive: true, force: true }); } });
+  held.push({ context, close: async () => { await context.close(); fs.rmSync(dir, { recursive: true, force: true }); } });
   return `http://127.0.0.1:${port}`;
+}
+
+// Open a page as a new tab in the runner's own Chrome window (the one with the test tabs).
+// false if there is no such window (headless, or Chrome wasn't in the run).
+async function openInRunWindow(url) {
+  const h = held.find(x => x.context);
+  if (!h) return false;
+  try {
+    const page = await h.context.newPage();
+    await page.goto(url);
+    await page.bringToFront();
+    return true;
+  } catch { return false; }
+}
+
+// This run's report on GitHub Pages, from the git remote: https://<owner>.github.io/<repo>/<day>/<file>
+export function pagesUrl(remote, day, file) {
+  const m = /github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?\/?$/.exec(String(remote || '').trim());
+  if (!m) return null;
+  const [, owner, repo] = m;
+  const site = repo.toLowerCase() === `${owner.toLowerCase()}.github.io` ? `https://${repo.toLowerCase()}/` : `https://${owner.toLowerCase()}.github.io/${repo}/`;
+  return `${site}${linkTo(`${day}/${file}`)}`;
 }
 
 // ---------- the whole run ----------
@@ -507,6 +530,9 @@ export async function runAll(opts) {
   const summary = buildSummary({ runId, startedAt, finishedAt: new Date().toISOString(), baseUrl: opts.baseUrl,
     browsers, charter: opts.charter, rows, only });
   Object.assign(summary, { report: P.html, folder: `test-runs/${runDay(runId)}`, messages });
+  // Where this report will be on GitHub Pages (only when the run is pushed).
+  summary.pages_url = (opts.push !== false && !control.stopped)
+    ? pagesUrl(repoInfo(root).remote, runDay(runId), P.html) : null;
   if (only) summary.only = only;
   if (control.stopped) summary.stopped = true;
   const htmlFile = path.join(P.dayDir, P.html);
@@ -517,7 +543,8 @@ export async function runAll(opts) {
 
   // 5. Open the report in Chrome.
   if (opts.open !== false && !control.stopped) {
-    openInChrome(opts.reportUrl ? opts.reportUrl(runId, P.html) : pathToFileURL(htmlFile).href);
+    const url = opts.reportUrl ? opts.reportUrl(runId, P.html) : pathToFileURL(htmlFile).href;
+    if (!(opts.headed && await openInRunWindow(url))) openInChrome(url);   // headed: a new tab next to the test tabs
   }
 
   // 6. Commit and push, so CI (and GitHub Pages) run too. A failed push doesn't fail the run.
