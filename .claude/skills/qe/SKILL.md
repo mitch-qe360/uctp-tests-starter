@@ -29,6 +29,7 @@ Write an indented tree, two spaces per level:
 - Every test line names what the screen or API shows: status code, field, exact message, amount.
 - Never use these words: valid, invalid, correct, successful, proper, works, as expected, fine, OK.
 - Use only facts from the story and the system notes. If something is missing, write `ASK: <question>` instead of guessing.
+- Never guess status codes, response bodies or messages. Use only the ones the story or the system notes give; otherwise write `ASK:`.
 
 ## 2. Heuristics
 
@@ -54,12 +55,16 @@ Use the ones that fit the story. Name one on each test line.
 
 ## 3. Coverage
 
-- Every AC has at least one `+` test.
-- Every rule in an AC has a `-` test. Every number gets boundary tests: at, just below, just above.
+- Every AC has at least one positive (`+`) test.
+- Every positive test has at least 3 negative (`-`) tests, each breaking a different rule.
+- Every number gets boundary tests: at the limit, just below, just above.
 - No two tests check the same thing.
+- Before you answer, count. End the charter with one line per AC: `Coverage AC-n: P positive, N negative`. N must be at least 3 × P, and P at least 1. If a line fails, add the missing tests first, then count again.
 - API tests check the rules. Web tests check what the user sees. Integration tests check where the screen and the API must agree.
 
 ## 4. Output, in this order
+
+Output only these, with no other text before, between or after them (no greetings, no notes, no questions outside the charter: put questions in the charter as `ASK:` lines).
 
 1. The charter tree.
 2. One code block per Playwright test file. Its first line is `// file: tests/<api|web|integration>/<name>.spec.ts`.
@@ -68,6 +73,8 @@ Use the ones that fit the story. Name one on each test line.
    - Make your own test data, unique on every run (follow the system notes).
    - Assert the exact status code, field and message from the charter.
 3. If you can write files (for example Claude Code), also save each test file to its path. Don't write the charter JSON: RUN saves it to `charters/` from Charter360.
+
+Always write the test files, even when some facts are missing: a test that needs a missing fact gets `test.fixme('<id> · <AC> · ASK: <question>', async () => {})` instead of a guess. Always give `test.fixme` and `test.skip` a body: `test.fixme('title')` alone skips the whole file.
 
 Then **stop**. The human reviews the charter in Charter360 and presses **RUN**. RUN saves the charter, runs the tests in the browsers from the Environment settings, writes `test-runs/`, and opens the report.
 
